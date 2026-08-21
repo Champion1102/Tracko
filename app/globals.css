@@ -1,26 +1,198 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Tokens point at plain custom properties so the whole palette can be swapped
+   per theme without Tailwind needing to know about it. */
+@theme {
+  /* Literal values, not var() indirections. Tailwind builds alpha utilities as
+     color-mix(in oklab, var(--color-x) 20%, transparent), and color-mix cannot
+     resolve a variable that points at another variable — the whole declaration
+     is dropped and the tint silently renders transparent. Themes override
+     these same names below. */
+  --color-ink:         #0B0710;
+  --color-ink-2:       #150F1E;
+  --color-surface:     #1E1729;
+  --color-surface-2:   #2C2239;
+  --color-line:        #3B2F4E;
+  --color-line-soft:   #2A2136;
+  --color-text:        #F7F2FA;
+  --color-muted:       #B0A4C0;
+  --color-faint:       #7C6F8E;
+  --color-gold:        #F3CB84;
+  --color-gold-deep:   #A6742A;
+  --color-grass:       #63D471;
+  --color-grass-deep:  #3B9946;
+  --color-flame:       #FF9152;
+  --color-flame-deep:  #C25A21;
+  --color-aqua:        #62C7DA;
+  --color-violet:      #AE8DE4;
+  --color-rose:        #F2809E;
+
+  --font-sans: var(--font-nunito), ui-rounded, system-ui, sans-serif;
+  --radius-card: 20px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Light is the base. Dark applies when the system asks for it, or when she
+   picks it explicitly. "Auto" simply means no data-theme attribute at all. */
+:root {
+  --color-ink:         #FAF6F2;
+  --color-ink-2:       #FFFFFF;
+  --color-surface:     #FFFFFF;
+  --color-surface-2:   #F2EBE3;
+  --color-line:        #E1D5C9;
+  --color-line-soft:   #EDE5DB;
+  --color-text:        #241B2C;
+  --color-muted:       #6A5F74;
+  --color-faint:       #9C90A6;
+  --color-gold:        #A8741B;
+  --color-gold-deep:   #7A5009;
+  --color-grass:       #35913D;
+  --color-grass-deep:  #24682A;
+  --color-flame:       #D2591F;
+  --color-flame-deep:  #A03D10;
+  --color-aqua:        #1C7C8E;
+  --color-violet:      #7043BC;
+  --color-rose:        #C63C66;
+
+  color-scheme: light;
+  --sheen:       rgba(0, 0, 0, 0.02);
+  --card-shadow: 0 1px 0 rgba(255,255,255,0.8) inset, 0 6px 18px -12px rgba(60,40,30,0.4);
+  --page-bg:
+    radial-gradient(900px 520px at 50% -12%, #F6E6D6 0%, transparent 62%),
+    radial-gradient(700px 460px at 8% 104%, #EEE6F6 0%, transparent 60%),
+    var(--color-ink);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+  --color-ink:         #0B0710;
+  --color-ink-2:       #150F1E;
+  --color-surface:     #1E1729;
+  --color-surface-2:   #2C2239;
+  --color-line:        #3B2F4E;
+  --color-line-soft:   #2A2136;
+  --color-text:        #F7F2FA;
+  --color-muted:       #B0A4C0;
+  --color-faint:       #7C6F8E;
+  --color-gold:        #F3CB84;
+  --color-gold-deep:   #A6742A;
+  --color-grass:       #63D471;
+  --color-grass-deep:  #3B9946;
+  --color-flame:       #FF9152;
+  --color-flame-deep:  #C25A21;
+  --color-aqua:        #62C7DA;
+  --color-violet:      #AE8DE4;
+  --color-rose:        #F2809E;
+
+  color-scheme: dark;
+  --sheen:       rgba(255, 255, 255, 0.035);
+  --card-shadow: 0 1px 0 rgba(255,255,255,0.05) inset, 0 8px 24px -14px rgba(0,0,0,0.9);
+  --page-bg:
+    radial-gradient(900px 520px at 50% -10%, #2E1F3D 0%, transparent 62%),
+    radial-gradient(700px 460px at 10% 105%, #1A1430 0%, transparent 60%),
+    var(--color-ink);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+:root[data-theme="dark"] {
+  --color-ink:         #0B0710;
+  --color-ink-2:       #150F1E;
+  --color-surface:     #1E1729;
+  --color-surface-2:   #2C2239;
+  --color-line:        #3B2F4E;
+  --color-line-soft:   #2A2136;
+  --color-text:        #F7F2FA;
+  --color-muted:       #B0A4C0;
+  --color-faint:       #7C6F8E;
+  --color-gold:        #F3CB84;
+  --color-gold-deep:   #A6742A;
+  --color-grass:       #63D471;
+  --color-grass-deep:  #3B9946;
+  --color-flame:       #FF9152;
+  --color-flame-deep:  #C25A21;
+  --color-aqua:        #62C7DA;
+  --color-violet:      #AE8DE4;
+  --color-rose:        #F2809E;
+
+  color-scheme: dark;
+  --sheen:       rgba(255, 255, 255, 0.035);
+  --card-shadow: 0 1px 0 rgba(255,255,255,0.05) inset, 0 8px 24px -14px rgba(0,0,0,0.9);
+  --page-bg:
+    radial-gradient(900px 520px at 50% -10%, #2E1F3D 0%, transparent 62%),
+    radial-gradient(700px 460px at 10% 105%, #1A1430 0%, transparent 60%),
+    var(--color-ink);
 }
+
+* { -webkit-tap-highlight-color: transparent; }
+
+html { background: var(--color-ink); }
+
+body {
+  background: var(--page-bg);
+  background-attachment: fixed;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* Chunky pressable surface — a solid block on a darker lip that collapses
+   when you press it. */
+.press {
+  border-bottom-width: 4px;
+  border-bottom-style: solid;
+  transition: transform 90ms ease, border-bottom-width 90ms ease, filter 140ms ease;
+}
+.press:active:not(:disabled) {
+  transform: translateY(3px);
+  border-bottom-width: 1px;
+}
+.press:disabled { opacity: 0.45; }
+
+.card {
+  background: linear-gradient(180deg, var(--sheen) 0%, transparent 42%), var(--color-surface);
+  border: 1.5px solid var(--color-line-soft);
+  border-radius: var(--radius-card);
+  box-shadow: var(--card-shadow);
+}
+
+.safe-top    { padding-top: env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+@keyframes pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.16); }
+  100% { transform: scale(1); }
+}
+.animate-pop { animation: pop 380ms cubic-bezier(.34,1.56,.64,1); }
+
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
+}
+.animate-float { animation: float-y 3.6s ease-in-out infinite; }
+
+@keyframes flicker {
+  0%, 100% { transform: scale(1) rotate(-2deg); opacity: 1; }
+  50%      { transform: scale(1.1) rotate(2deg);  opacity: .88; }
+}
+.animate-flicker { animation: flicker 1.5s ease-in-out infinite; }
+
+@keyframes shimmer {
+  0%   { background-position: -220% 0; }
+  100% { background-position: 220% 0; }
+}
+.shimmer {
+  background-image: linear-gradient(100deg, transparent 38%, rgba(255,255,255,.32) 50%, transparent 62%);
+  background-size: 220% 100%;
+  animation: shimmer 2.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop, .animate-float, .animate-flicker, .shimmer { animation: none; }
+  .press { transition: none; }
+}
+
+::-webkit-scrollbar { width: 0; height: 0; }
+
+.scrollbar-none { scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }

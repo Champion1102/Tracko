@@ -1,0 +1,21 @@
+{
+  "name": "Tracko — 90 Day Challenge",
+  "short_name": "Tracko",
+  "description": "Ten habits, ninety days, one Dyson.",
+  "start_url": "/today",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0A0912",
+  "theme_color": "#0A0912",
+  "categories": ["health", "lifestyle", "productivity"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Today", "url": "/today" },
+    { "name": "Reward", "url": "/reward" }
+  ]
+}
