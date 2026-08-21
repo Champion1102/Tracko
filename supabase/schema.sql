@@ -27,7 +27,6 @@ create table if not exists habits (
 
 -- Added later; safe to run on an existing database.
 alter table habits add column if not exists icon text;
-alter table nudges add column if not exists sender text not null default 'sponsor';
 
 create table if not exists entries (
   habit_id   text not null references habits(id) on delete cascade,
@@ -55,6 +54,9 @@ create table if not exists nudges (
   sent_at timestamptz not null default now(),
   read_at timestamptz
 );
+-- Backfills the column on databases created before `sender` existed. Placed
+-- after the create so a fresh run doesn't hit a table that isn't there yet.
+alter table nudges add column if not exists sender text not null default 'sponsor';
 
 create table if not exists celebrations (
   key        text primary key,
