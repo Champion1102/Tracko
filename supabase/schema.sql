@@ -15,7 +15,7 @@ create table if not exists habits (
   blurb      text not null default '',
   emoji      text not null default '✅',
   icon       text,
-  kind       text not null check (kind in ('binary','counter','duration','checklist')),
+  kind       text not null check (kind in ('binary','counter','duration','checklist','sleep')),
   cadence    text not null check (cadence in ('daily','weekly')),
   points     numeric not null,
   target     numeric not null default 1,
@@ -27,6 +27,12 @@ create table if not exists habits (
 
 -- Added later; safe to run on an existing database.
 alter table habits add column if not exists icon text;
+-- 'sleep' is a valid habit kind (lib/types.ts) but early schemas left it out of
+-- the check, so the seed's sleep habit — and thus the whole atomic seed batch —
+-- was silently rejected. Rebuild the constraint to include it.
+alter table habits drop constraint if exists habits_kind_check;
+alter table habits add constraint habits_kind_check
+  check (kind in ('binary','counter','duration','checklist','sleep'));
 
 create table if not exists entries (
   habit_id   text not null references habits(id) on delete cascade,
