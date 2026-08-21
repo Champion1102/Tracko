@@ -87,6 +87,19 @@ create table if not exists chat (
 );
 create index if not exists chat_created_idx on chat(created_at);
 
+-- Her private expense log. Categories are a fixed catalogue in lib/finance.ts,
+-- so category_id is stored as plain text rather than a foreign key.
+create table if not exists expenses (
+  id          text primary key,
+  day         date not null,
+  amount      numeric not null check (amount > 0),
+  category_id text not null,
+  verdict     text not null check (verdict in ('worth','meh','regret')),
+  note        text,
+  created_at  timestamptz not null default now()
+);
+create index if not exists expenses_day_idx on expenses(day);
+
 create table if not exists push_subs (
   endpoint   text primary key,
   role       text not null,
@@ -108,6 +121,7 @@ alter table push_subs    enable row level security;
 alter table coach        enable row level security;
 alter table photos       enable row level security;
 alter table chat         enable row level security;
+alter table expenses     enable row level security;
 
 -- Private bucket for her daily photo proof. Served through short-lived signed
 -- URLs from the server, never public.

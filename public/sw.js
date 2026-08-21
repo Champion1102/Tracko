@@ -1,7 +1,19 @@
 /* Tracko service worker — push delivery plus a thin offline shell. */
-const VERSION = "tracko-v1";
+const VERSION = "tracko-v2";
 const SHELL = `${VERSION}-shell`;
 const OFFLINE_URL = "/offline";
+
+/**
+ * Turbopack names dev chunks after their module path, not their contents, so a
+ * chunk's URL survives edits while its code changes underneath. Cache-firsting
+ * those pins whatever build happened to load first and never lets go — you edit
+ * a component, the page reloads, and the service worker hands back the old one.
+ * Production chunk URLs are content-hashed, so there the cache is safe.
+ */
+const DEV =
+  self.location.hostname === "localhost" ||
+  self.location.hostname === "127.0.0.1" ||
+  self.location.hostname.endsWith(".local");
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -37,6 +49,8 @@ self.addEventListener("fetch", (event) => {
     );
     return;
   }
+
+  if (DEV && url.pathname.startsWith("/_next/static")) return;
 
   if (url.pathname.startsWith("/_next/static") || url.pathname.startsWith("/icons/")) {
     event.respondWith(

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { currentRole } from "@/lib/auth";
+import { currentRole, needsPinSetup } from "@/lib/auth";
 import { loadState } from "@/lib/state";
 import { Welcome } from "@/components/onboarding/Welcome";
 
@@ -11,6 +11,7 @@ export default async function WelcomePage() {
   if (role === "sponsor") redirect("/sponsor");
 
   const s = await loadState();
+  if (needsPinSetup(s.config, role)) redirect("/set-pin");
   if (s.config.onboardedAt) redirect("/today");
 
   return (

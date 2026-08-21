@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { compressImage } from "@/lib/compress";
@@ -85,9 +86,17 @@ export function PhotoStrip({
         <h2 className="text-[11px] font-black tracking-[0.16em] text-faint uppercase">
           Today in photos
         </h2>
-        <span className={`text-[12px] font-black tabular-nums ${shots.length ? "text-gold" : "text-faint"}`}>
-          {shots.length ? `+${earned}` : `${each} each`}
-        </span>
+        <div className="flex shrink-0 items-baseline gap-3">
+          <span className={`text-[12px] font-black tabular-nums ${shots.length ? "text-gold" : "text-faint"}`}>
+            {shots.length ? `+${earned}` : `${each} each`}
+          </span>
+          <Link
+            href="/gallery"
+            className="text-[11px] font-black tracking-[0.16em] text-gold uppercase"
+          >
+            See all
+          </Link>
+        </div>
       </div>
       <p className="mt-1 text-[12.5px] leading-snug font-semibold text-muted">
         Optional. Up to {max} a day — a gym selfie, your plate, your water bottle. Pure bonus, it

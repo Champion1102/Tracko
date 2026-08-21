@@ -5,6 +5,7 @@ import type {
   Config,
   DB,
   Entry,
+  Expense,
   Habit,
   Letter,
   Nudge,
@@ -12,6 +13,8 @@ import type {
   PushSub,
   Role,
 } from "../types";
+
+export type ExpensePatch = Partial<Pick<Expense, "amount" | "categoryId" | "verdict" | "note">>;
 
 export interface Store {
   read(): Promise<DB>;
@@ -34,4 +37,7 @@ export interface Store {
   photoUrl(photo: Photo): Promise<string | null>;
   addChatMessages(messages: ChatMessage[]): Promise<void>;
   clearChat(): Promise<void>;
+  addExpense(expense: Expense): Promise<void>;
+  updateExpense(id: string, patch: ExpensePatch): Promise<void>;
+  deleteExpense(id: string): Promise<void>;
 }

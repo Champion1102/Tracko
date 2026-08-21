@@ -9,6 +9,7 @@ import type {
   Config,
   DB,
   Entry,
+  Expense,
   Habit,
   Letter,
   Nudge,
@@ -16,7 +17,7 @@ import type {
   PushSub,
   Role,
 } from "../types";
-import type { Store } from "./store";
+import type { ExpensePatch, Store } from "./store";
 
 const FILE = path.join(process.cwd(), ".data", "tracko.json");
 const UPLOADS = path.join(process.cwd(), ".data", "uploads");
@@ -33,6 +34,7 @@ function freshDb(): DB {
     coach: null,
     photos: [],
     chat: [],
+    expenses: [],
   };
 }
 
@@ -187,8 +189,11 @@ export class FileStore implements Store {
   }
 
   async addPhoto(photo: Photo, bytes: Buffer) {
-    await fs.mkdir(UPLOADS, { recursive: true });
-    await fs.writeFile(path.join(UPLOADS, photo.path), bytes);
+    // photo.path is `<day>/<id>.<ext>`, so the day folder has to exist too —
+    // creating UPLOADS alone left every upload failing on ENOENT.
+    const dest = path.join(UPLOADS, photo.path);
+    await fs.mkdir(path.dirname(dest), { recursive: true });
+    await fs.writeFile(dest, bytes);
     await this.mutate<void>((db) => {
       db.photos.push(photo);
     });
@@ -217,10 +222,34 @@ export class FileStore implements Store {
     });
   }
 
+  addExpense(expense: Expense) {
+    return this.mutate<void>((db) => {
+      db.expenses.push(expense);
+    });
+  }
+
+  updateExpense(id: string, patch: ExpensePatch) {
+    return this.mutate<void>((db) => {
+      const found = db.expenses.find((e) => e.id === id);
+      if (found) Object.assign(found, patch);
+    });
+  }
+
+  deleteExpense(id: string) {
+    return this.mutate<void>((db) => {
+      db.expenses = db.expenses.filter((e) => e.id !== id);
+    });
+  }
+
   async photoUrl(photo: Photo) {
     try {
       const bytes = await fs.readFile(path.join(UPLOADS, photo.path));
-      return `data:image/jpeg;base64,${bytes.toString("base64")}`;
+      // Label it with what it actually is. Chrome sniffs past a wrong type,
+      // iOS Safari — which is the whole point of this being a PWA — does not.
+      const ext = photo.path.split(".").pop()?.toLowerCase();
+      const mime =
+        ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+      return `data:${mime};base64,${bytes.toString("base64")}`;
     } catch {
       return null;
     }

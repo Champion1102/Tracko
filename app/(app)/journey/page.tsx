@@ -3,7 +3,7 @@ import { loadState } from "@/lib/state";
 import { HabitCard } from "@/components/HabitCard";
 import { PathMap, type Node } from "@/components/PathMap";
 import { FreezeButton } from "@/components/FreezeButton";
-import { PhotoGallery } from "@/components/PhotoGallery";
+import { GalleryCard } from "@/components/GalleryCard";
 import { Character } from "@/components/character";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +39,8 @@ export default async function JourneyPage() {
         </p>
         </div>
       </header>
+
+      <GalleryCard count={s.photos.length} />
 
       {canRepair && (
         <section className="card border-flame/45 bg-flame/8 p-4">
@@ -80,8 +82,6 @@ export default async function JourneyPage() {
       <section className="card px-2 py-4">
         <PathMap nodes={nodes} today={s.today} />
       </section>
-
-      <PhotoGallery />
     </div>
   );
 }

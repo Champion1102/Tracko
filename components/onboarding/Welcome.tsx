@@ -139,8 +139,9 @@ export function Welcome(props: WelcomeProps) {
               <Eyebrow>What you&apos;re playing for</Eyebrow>
 
               {/* The photo leads. Showing it at 4% during onboarding shows her
-                  nothing — the animation demonstrates the mechanic and then
-                  leaves the actual prize on screen. */}
+                  nothing, and the tile reveal is noise before she knows what
+                  she is looking at — so the prize sits here plainly. She meets
+                  the uncover mechanic on /today, where it means something. */}
               <div className="mt-3 grid place-items-center">
                 {props.rewardImage ? (
                   <RewardImage
@@ -148,7 +149,7 @@ export function Welcome(props: WelcomeProps) {
                     alt={props.rewardName}
                     rewardPct={100}
                     size={250}
-                    animate
+                    plain
                   />
                 ) : (
                   <Character role="reward" mood="proud" size={150} />

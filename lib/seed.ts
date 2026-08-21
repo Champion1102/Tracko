@@ -220,6 +220,8 @@ export function defaultConfig(startDate: string): Config {
     promiseSignature: "",
     promiseAcceptedAt: null,
     onboardedAt: null,
+    heroPinHash: null,
+    sponsorPinHash: null,
     penaltyEnabled: false,
     penaltyPoints: 25,
     penaltyBelowPct: 30,

@@ -41,6 +41,25 @@ export type Photo = {
   createdAt: string;
 };
 
+/**
+ * Her verdict on a spend, decided by her at the moment she logs it. The whole
+ * point of the tracker is the second column — knowing where it went is easy,
+ * knowing whether it was worth it is the part that changes behaviour.
+ */
+export type SpendVerdict = "worth" | "meh" | "regret";
+
+export type Expense = {
+  id: string;
+  /** YYYY-MM-DD, same day-key convention as entries and photos. */
+  day: string;
+  /** Minor-unit-free: whole rupees, matching how `money()` renders. */
+  amount: number;
+  categoryId: string;
+  verdict: SpendVerdict;
+  note?: string;
+  createdAt: string;
+};
+
 export type ChatMessage = {
   id: string;
   who: "her" | "nimbus";
@@ -127,6 +146,15 @@ export type Config = {
   onboardedAt: string | null;
 
   /**
+   * Per-role login PIN, salted + hashed (scrypt). Unset means that role is
+   * still on the bootstrap PIN from the environment — first login prompts them
+   * to set their own, which lands here and the env var is ignored thereafter.
+   * A hash, never the PIN itself, is stored: leaking the config leaks nothing.
+   */
+  heroPinHash: string | null;
+  sponsorPinHash: string | null;
+
+  /**
    * Optional deduction when a day closes badly. Off by default; see the note
    * in scoring.ts on why this is a sharp tool.
    */
@@ -180,4 +208,5 @@ export type DB = {
   coach: CoachPack | null;
   photos: Photo[];
   chat: ChatMessage[];
+  expenses: Expense[];
 };

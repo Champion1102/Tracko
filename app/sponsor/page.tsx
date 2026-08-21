@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { logoutAction } from "@/app/actions";
-import { currentRole } from "@/lib/auth";
+import { currentRole, needsPinSetup } from "@/lib/auth";
 import { coachConfigured, coachProviderNames } from "@/lib/coach";
 import { prettyDay } from "@/lib/dates";
 import { usingSupabase } from "@/lib/db";
@@ -26,6 +27,7 @@ export default async function SponsorPage() {
   if (role === "hero") redirect("/today");
 
   const s = await loadState();
+  if (needsPinSetup(s.config, role)) redirect("/set-pin");
   const { totals, todayScore, config, days } = s;
   const cur = config.currency;
   const done = todayScore.perHabit.filter((p) => p.done);
@@ -50,11 +52,19 @@ export default async function SponsorPage() {
             Day {totals.daysElapsed} · {prettyDay(s.today)}
           </p>
         </div>
-        <form action={logoutAction}>
-          <button className="text-[11px] font-black tracking-wide text-faint uppercase">
-            Sign out
-          </button>
-        </form>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/set-pin"
+            className="text-[11px] font-black tracking-wide text-faint uppercase"
+          >
+            PIN
+          </Link>
+          <form action={logoutAction}>
+            <button className="text-[11px] font-black tracking-wide text-faint uppercase">
+              Sign out
+            </button>
+          </form>
+        </div>
       </header>
 
       <section className="card p-4">

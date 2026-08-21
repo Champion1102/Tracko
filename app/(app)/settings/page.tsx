@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { logoutAction } from "@/app/actions";
 import { money } from "@/lib/money";
 import { cookies } from "next/headers";
@@ -73,6 +74,19 @@ export default async function SettingsPage() {
           they hold the rules so the finish line can&apos;t move.
         </p>
       </section>
+
+      <Link
+        href="/set-pin"
+        className="press card flex items-center justify-between p-4"
+      >
+        <span>
+          <span className="block text-[13.5px] font-black text-text">Change your PIN</span>
+          <span className="block text-[12px] font-semibold text-muted">
+            The six digits you sign in with.
+          </span>
+        </span>
+        <span className="text-[16px] text-faint">›</span>
+      </Link>
 
       <form action={logoutAction}>
         <button className="w-full py-3 text-[12px] font-black tracking-wide text-faint uppercase">

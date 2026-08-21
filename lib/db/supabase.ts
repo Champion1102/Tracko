@@ -8,6 +8,7 @@ import type {
   Config,
   DB,
   Entry,
+  Expense,
   Habit,
   Letter,
   Nudge,
@@ -15,7 +16,7 @@ import type {
   PushSub,
   Role,
 } from "../types";
-import type { Store } from "./store";
+import type { ExpensePatch, Store } from "./store";
 
 type HabitRow = {
   id: string;
@@ -104,7 +105,7 @@ export class SupabaseStore implements Store {
 
   async read(): Promise<DB> {
     const config = await this.ensureSeeded();
-    const [habits, entries, letters, nudges, celebrations, pushSubs, coach, photos, chat] =
+    const [habits, entries, letters, nudges, celebrations, pushSubs, coach, photos, chat, expenses] =
       await Promise.all([
       this.sb.from("habits").select("*").order("sort_order"),
       this.sb.from("entries").select("*"),
@@ -114,7 +115,11 @@ export class SupabaseStore implements Store {
       this.sb.from("push_subs").select("*"),
       this.sb.from("coach").select("data").eq("id", 1).maybeSingle(),
       this.sb.from("photos").select("*").order("created_at"),
-      this.sb.from("chat").select("*").order("created_at").limit(400),
+      // Newest 400, not oldest — ascending order here meant that once her
+      // thread passed 400 messages the page froze on her earliest ones and
+      // Nimbus kept getting fed stale context. Re-sorted below.
+      this.sb.from("chat").select("*").order("created_at", { ascending: false }).limit(400),
+      this.sb.from("expenses").select("*").order("day", { ascending: false }).limit(5000),
     ]);
 
     return {
@@ -164,11 +169,22 @@ export class SupabaseStore implements Store {
         path: p.path,
         createdAt: p.created_at,
       })),
-      chat: (chat.data ?? []).map((c) => ({
-        id: c.id,
-        who: c.who,
-        body: c.body,
-        createdAt: c.created_at,
+      chat: (chat.data ?? [])
+        .map((c) => ({
+          id: c.id,
+          who: c.who,
+          body: c.body,
+          createdAt: c.created_at,
+        }))
+        .reverse(),
+      expenses: (expenses.data ?? []).map((e) => ({
+        id: e.id,
+        day: e.day,
+        amount: Number(e.amount),
+        categoryId: e.category_id,
+        verdict: e.verdict,
+        note: e.note ?? undefined,
+        createdAt: e.created_at,
       })),
     };
   }
@@ -302,6 +318,32 @@ export class SupabaseStore implements Store {
 
   async clearChat() {
     await this.sb.from("chat").delete().neq("id", "");
+  }
+
+  async addExpense(expense: Expense) {
+    await this.sb.from("expenses").insert({
+      id: expense.id,
+      day: expense.day,
+      amount: expense.amount,
+      category_id: expense.categoryId,
+      verdict: expense.verdict,
+      note: expense.note ?? null,
+      created_at: expense.createdAt,
+    });
+  }
+
+  async updateExpense(id: string, patch: ExpensePatch) {
+    const row: Record<string, unknown> = {};
+    if (patch.amount !== undefined) row.amount = patch.amount;
+    if (patch.categoryId !== undefined) row.category_id = patch.categoryId;
+    if (patch.verdict !== undefined) row.verdict = patch.verdict;
+    if (patch.note !== undefined) row.note = patch.note || null;
+    if (!Object.keys(row).length) return;
+    await this.sb.from("expenses").update(row).eq("id", id);
+  }
+
+  async deleteExpense(id: string) {
+    await this.sb.from("expenses").delete().eq("id", id);
   }
 
   async photoUrl(photo: Photo) {

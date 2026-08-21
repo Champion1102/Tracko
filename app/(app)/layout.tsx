@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { currentRole } from "@/lib/auth";
+import { currentRole, needsPinSetup } from "@/lib/auth";
 import { loadState } from "@/lib/state";
 import { CelebrationStack } from "@/components/Celebration";
 import { TabBar } from "@/components/TabBar";
@@ -14,6 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (role === "sponsor") redirect("/sponsor");
 
   const s = await loadState();
+  if (needsPinSetup(s.config, role)) redirect("/set-pin");
   // She hasn't been through the welcome flow yet — nothing else should load
   // before she's named herself and made the promise.
   if (!s.config.onboardedAt) redirect("/welcome");

@@ -9,6 +9,14 @@ const ROWS = 6;
 const TILES = COLS * ROWS;
 
 /**
+ * The reward photo is a cut-out PNG — roughly four fifths of it is fully
+ * transparent, and the product itself is mostly near-black. Dropped straight
+ * onto the dark theme it vanishes and all that reads is the seams, so every
+ * variant below sits on an opaque plate: the backdrop it was shot against.
+ */
+const PLATE = "linear-gradient(160deg, #FBF8F4 0%, #EFE7DD 55%, #E2D8CC 100%)";
+
+/**
  * Deterministic shuffle so the picture doesn't unzip row by row — it resolves
  * from scattered points, which reads much more like something appearing.
  * Same order every render, no Math.random.
@@ -37,6 +45,7 @@ export function RewardImage({
   rewardPct,
   size = 290,
   animate = false,
+  plain = false,
 }: {
   src: string;
   alt: string;
@@ -44,13 +53,16 @@ export function RewardImage({
   size?: number;
   /** Fill the tiles in on mount, so the mechanic explains itself. */
   animate?: boolean;
+  /** Skip the tiling entirely and just show the photo — for onboarding, where
+   *  the point is "here is the thing", not "here is how the thing unlocks". */
+  plain?: boolean;
 }) {
   const target = Math.min(Math.max(rewardPct, 0), 100);
   const [progress, setProgress] = useState(animate ? 0 : 100);
   const shown = animate ? (target * progress) / 100 : target;
 
   useEffect(() => {
-    if (!animate) return;
+    if (!animate || plain) return;
     const DURATION = 1700;
     const startedAt = performance.now();
     let raf = 0;
@@ -62,16 +74,37 @@ export function RewardImage({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [animate, target]);
+  }, [animate, plain, target]);
 
   if (!src) return <DysonBuild rewardPct={rewardPct} size={size} />;
+
+  if (plain) {
+    return (
+      <div
+        className="relative overflow-hidden rounded-2xl"
+        style={{ width: size, height: size, background: PLATE }}
+        role="img"
+        aria-label={alt}
+      >
+        <div
+          className="h-full w-full"
+          style={{
+            backgroundImage: `url(${src})`,
+            backgroundSize: "contain",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+          }}
+        />
+      </div>
+    );
+  }
 
   const unlocked = Math.round((shown / 100) * TILES);
 
   return (
     <div
       className="relative overflow-hidden rounded-2xl"
-      style={{ width: size, height: size }}
+      style={{ width: size, height: size, background: PLATE }}
       role="img"
       aria-label={`${alt}, ${Math.round(target)} percent revealed`}
     >
@@ -113,12 +146,11 @@ export function RewardImage({
 
       {/* Faint seams, so it reads as pieces rather than a blurry photo. */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.035]"
+        className="pointer-events-none absolute inset-0 opacity-[0.06]"
         style={{
           backgroundImage:
-            "linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)",
+            "linear-gradient(to right, #241B2C 1px, transparent 1px), linear-gradient(to bottom, #241B2C 1px, transparent 1px)",
           backgroundSize: `${100 / COLS}% ${100 / ROWS}%`,
-          color: "var(--color-text)",
         }}
       />
     </div>

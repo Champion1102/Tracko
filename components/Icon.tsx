@@ -83,4 +83,19 @@ export const Icon = {
       <path d="M7 4h10M7 9h10M15.5 4c0 4-3 5-6 5l7 11" />
     </S>
   ),
+  wallet: (p: Props) => (
+    // Two strokes only — anything more turns to mush at the 16px it renders at
+    // in the top bar.
+    <S {...p}>
+      <rect x="2.5" y="6" width="19" height="12" rx="2.6" />
+      <path d="M2.5 10.2h19" />
+    </S>
+  ),
+  photos: (p: Props) => (
+    <S {...p}>
+      <rect x="3" y="5" width="18" height="14" rx="3" />
+      <circle cx="8.6" cy="10" r="1.6" />
+      <path d="M3.6 16.5l4.2-3.8a2 2 0 0 1 2.7 0l3.1 2.9M13.2 15.1l2.2-2a2 2 0 0 1 2.7 0l2.3 2.1" />
+    </S>
+  ),
 };

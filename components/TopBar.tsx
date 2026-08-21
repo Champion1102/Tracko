@@ -46,6 +46,17 @@ export function TopBar({
           </span>
         </Link>
 
+        {/* Beside the reward, not in the tab bar — a seventh tab crowded the
+            row, and this belongs next to the other money on screen. */}
+        <Link
+          href="/money"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-violet/35 bg-violet/12"
+          aria-label="Money"
+          title="Money"
+        >
+          <Icon.wallet size={16} className="text-violet" />
+        </Link>
+
         {unread > 0 && (
           <Link
             href="/today#messages"

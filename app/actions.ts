@@ -2,7 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { currentRole, endSession, roleForPin, startSession } from "@/lib/auth";
+import { headers } from "next/headers";
+import {
+  currentRole,
+  endSession,
+  needsPinSetup,
+  setPin,
+  startSession,
+  validatePin,
+  verifyPin,
+} from "@/lib/auth";
+import { clearAttempts, takeAttempt } from "@/lib/ratelimit";
 import { db } from "@/lib/db";
 import { diffDays, todayInTz } from "@/lib/dates";
 import { detectCelebrations } from "@/lib/scoring";
@@ -23,12 +33,49 @@ function refresh() {
 
 export async function loginAction(_prev: unknown, formData: FormData) {
   const pin = String(formData.get("pin") ?? "");
-  const role = roleForPin(pin);
+
+  // Throttle by client IP before doing any PIN work, so a script can't grind
+  // through the keyspace. x-forwarded-for's first hop is the real client
+  // behind Vercel's proxy; fall back to a shared key if it's somehow absent.
+  const fwd = (await headers()).get("x-forwarded-for") ?? "";
+  const ip = fwd.split(",")[0].trim() || "unknown";
+  const gate = takeAttempt(`login:${ip}`);
+  if (!gate.ok) {
+    const mins = Math.ceil(gate.retryAfterSec / 60);
+    return { error: `Too many tries. Try again in ${mins} min.` };
+  }
+
+  const role = await verifyPin(pin);
   if (!role) return { error: "That PIN doesn't match." };
+
+  clearAttempts(`login:${ip}`);
   await startSession(role);
-  if (role === "sponsor") redirect("/sponsor");
 
   const { config } = await db().read();
+  // Still on the bootstrap PIN handed to them — make them choose their own.
+  if (needsPinSetup(config, role)) redirect("/set-pin");
+  if (role === "sponsor") redirect("/sponsor");
+  redirect(config.onboardedAt ? "/today" : "/welcome");
+}
+
+/** Set the logged-in user's own PIN. The session cookie already proves who
+ *  they are, so no current PIN is required — this is the first-run claim and
+ *  the Settings "change PIN" both. */
+export async function setOwnPin(_prev: unknown, formData: FormData) {
+  const role = await currentRole();
+  if (!role) redirect("/login");
+
+  const pin = String(formData.get("pin") ?? "").trim();
+  const confirm = String(formData.get("confirm") ?? "").trim();
+  const problem = validatePin(pin);
+  if (problem) return { error: problem };
+  if (pin !== confirm) return { error: "Those two don't match." };
+
+  await setPin(role, pin);
+  refresh();
+
+  const { config } = await db().read();
+  if (role === "sponsor") redirect("/sponsor");
   redirect(config.onboardedAt ? "/today" : "/welcome");
 }
 
