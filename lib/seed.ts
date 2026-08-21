@@ -203,7 +203,7 @@ export function defaultConfig(startDate: string): Config {
     rewardTargetPct: 85,
     rewardPrice: 49900,
     currency: "₹",
-    rewardImage: "",
+    rewardImage: "/reward.png",
     timezone: "Asia/Kolkata",
     heroName: "",
     sponsorName: "",
