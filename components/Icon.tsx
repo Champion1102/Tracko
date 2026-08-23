@@ -23,6 +23,19 @@ const S = ({ size = 20, className = "", children }: Props & { children: React.Re
 );
 
 export const Icon = {
+  home: (p: Props) => (
+    <S {...p}>
+      <path d="M4 11l8-7 8 7" />
+      <path d="M6 9.5V20h12V9.5" />
+      <path d="M10 20v-5.5h4V20" />
+    </S>
+  ),
+  gear: (p: Props) => (
+    <S {...p}>
+      <circle cx="12" cy="12" r="3.2" />
+      <path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7" />
+    </S>
+  ),
   today: (p: Props) => (
     <S {...p}>
       <circle cx="12" cy="12" r="9" />

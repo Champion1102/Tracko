@@ -1,80 +1,24 @@
-import { redirect } from "next/navigation";
-import Link from "next/link";
-import { logoutAction } from "@/app/actions";
-import { currentRole, needsPinSetup } from "@/lib/auth";
-import { coachConfigured, coachProviderNames } from "@/lib/coach";
+import { coachConfigured } from "@/lib/coach";
 import { prettyDay } from "@/lib/dates";
-import { db, usingSupabase } from "@/lib/db";
 import { money } from "@/lib/money";
 import { loadState } from "@/lib/state";
-import { CoachTester } from "@/components/CoachTester";
-import { DealSettings } from "@/components/DealSettings";
 import { DysonBuild } from "@/components/DysonBuild";
 import { HabitIcon } from "@/components/HabitIcon";
-import { HabitEditor } from "@/components/HabitEditor";
-import { LetterEditor } from "@/components/LetterEditor";
-import { ChatThread, type NudgeWithUrl } from "@/components/ChatThread";
-import { PromiseEditor } from "@/components/PromiseEditor";
-import { PushSetup } from "@/components/PushSetup";
 import { RewardImage } from "@/components/RewardImage";
-import { SWRegister } from "@/components/SWRegister";
 
 export const dynamic = "force-dynamic";
 
-export default async function SponsorPage() {
-  const role = await currentRole();
-  if (!role) redirect("/login");
-  if (role === "hero") redirect("/today");
-
+/** The daily glance: where the money stands, today, the last week. */
+export default async function SponsorOverviewPage() {
   const s = await loadState();
-  if (needsPinSetup(s.config, role)) redirect("/set-pin");
-
-  // Signed URLs for any photo messages in the thread, resolved together.
-  const nudges: NudgeWithUrl[] = await Promise.all(
-    s.nudges.map(async (n) => ({
-      ...n,
-      imageUrl: n.image ? await db().mediaUrl(n.image) : null,
-    })),
-  );
   const { totals, todayScore, config, days } = s;
   const cur = config.currency;
   const done = todayScore.perHabit.filter((p) => p.done);
   const missing = todayScore.perHabit.filter((p) => !p.done);
   const recent = days.filter((d) => d.status !== "future").slice(-7).reverse();
-  const her = config.heroName || "She";
-  const maxPoints = totals.max;
 
   return (
-    <div className="safe-top safe-bottom mx-auto max-w-md space-y-6 px-4 pt-5 pb-12">
-      <SWRegister />
-
-      <header className="flex items-start justify-between gap-3 px-1">
-        <div>
-          <p className="text-[10px] font-black tracking-[0.2em] text-faint uppercase">
-            Sponsor view
-          </p>
-          <h1 className="mt-0.5 text-2xl font-black text-text">
-            {her}&apos;s {config.totalDays} days
-          </h1>
-          <p className="mt-1 text-[13px] font-bold text-muted">
-            Day {totals.daysElapsed} · {prettyDay(s.today)}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/set-pin"
-            className="text-[11px] font-black tracking-wide text-faint uppercase"
-          >
-            PIN
-          </Link>
-          <form action={logoutAction}>
-            <button className="text-[11px] font-black tracking-wide text-faint uppercase">
-              Sign out
-            </button>
-          </form>
-        </div>
-      </header>
-
+    <div className="space-y-5">
       <section className="card p-4">
         <div className="flex items-center gap-4">
           {config.rewardImage ? (
@@ -152,15 +96,6 @@ export default async function SponsorPage() {
         )}
       </section>
 
-      <section className="card h-[440px] overflow-hidden">
-        <ChatThread
-          nudges={nudges}
-          unread={s.unreadForSponsor.length}
-          me="sponsor"
-          otherName={config.heroName || "Her"}
-        />
-      </section>
-
       <section className="card p-4">
         <h2 className="mb-3 text-[11px] font-black tracking-[0.16em] text-faint uppercase">
           Last 7 days
@@ -185,66 +120,12 @@ export default async function SponsorPage() {
         </ul>
       </section>
 
-      <section className="space-y-2.5">
-        <h2 className="px-1 text-[11px] font-black tracking-[0.16em] text-faint uppercase">
-          Sealed letters
-        </h2>
-        <p className="px-1 text-[12.5px] leading-snug font-semibold text-muted">
-          Write these now. She can&apos;t see them until she reaches the day, and once she opens one
-          it locks.
+      {!coachConfigured() && (
+        <p className="px-1 text-[11.5px] leading-snug font-semibold text-faint">
+          Nimbus is running on built-in lines — add a provider key under Setup to have them
+          written fresh each morning.
         </p>
-        {s.letters.map((l) => (
-          <LetterEditor key={l.id} letter={l} daysElapsed={totals.daysElapsed} />
-        ))}
-      </section>
-
-      <hr className="border-line-soft" />
-
-      <div className="px-1">
-        <h2 className="text-lg font-black text-text">Setup</h2>
-        <p className="mt-1 text-[12.5px] font-semibold text-muted">
-          Only you can see or change any of this. Her side has reminders and sound, nothing else.
-        </p>
-      </div>
-
-      <PromiseEditor
-        text={config.promiseText}
-        signature={config.promiseSignature}
-        signedAt={config.promiseAcceptedAt}
-        heroName={config.heroName}
-      />
-
-      <DealSettings config={config} maxPoints={maxPoints} />
-      <HabitEditor habits={s.allHabits} />
-
-      <section className="card space-y-3 p-4">
-        <h2 className="text-[11px] font-black tracking-[0.16em] text-faint uppercase">
-          Under the hood
-        </h2>
-        <Row
-          label="Storage"
-          value={usingSupabase() ? "Supabase" : "Local file"}
-          note={
-            usingSupabase()
-              ? "Safe across devices and reinstalls."
-              : "Development only. Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to sync."
-          }
-          ok={usingSupabase()}
-        />
-        <Row
-          label="Nimbus's writing"
-          value={coachConfigured() ? (s.coach?.provider ?? "Ready") : "Built-in lines"}
-          note={
-            coachConfigured()
-              ? `${coachProviderNames().join(" → ")}, tried in order. Written once a day${s.coach ? "" : " — first batch lands on the next 5am run"}.`
-              : "Add GROQ_API_KEY to have the lines written fresh each morning."
-          }
-          ok={coachConfigured()}
-        />
-        <CoachTester enabled={coachConfigured()} />
-      </section>
-
-      <PushSetup vapidKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""} />
+      )}
     </div>
   );
 }
@@ -254,18 +135,6 @@ function Tile({ v, l, tone }: { v: string; l: string; tone: string }) {
     <div className="card p-2.5 text-center">
       <div className={`text-[15px] font-black tabular-nums ${tone}`}>{v}</div>
       <div className="text-[9px] font-black tracking-wide text-faint uppercase">{l}</div>
-    </div>
-  );
-}
-
-function Row({ label, value, note, ok }: { label: string; value: string; note: string; ok: boolean }) {
-  return (
-    <div>
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[13px] font-bold text-text">{label}</span>
-        <span className={`text-[12px] font-black ${ok ? "text-grass" : "text-faint"}`}>{value}</span>
-      </div>
-      <p className="mt-0.5 text-[11.5px] leading-snug font-semibold text-muted">{note}</p>
     </div>
   );
 }
