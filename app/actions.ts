@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { after } from "next/server";
 import {
   currentRole,
   endSession,
@@ -17,7 +18,8 @@ import { db } from "@/lib/db";
 import { diffDays, todayInTz } from "@/lib/dates";
 import { detectCelebrations } from "@/lib/scoring";
 import { sendPush } from "@/lib/push";
-import type { Config, Entry, Habit, Role } from "@/lib/types";
+import type { Store } from "@/lib/db";
+import type { Config, DB, Entry, Habit, Role } from "@/lib/types";
 
 async function requireRole(...roles: Role[]): Promise<Role> {
   const role = await currentRole();
@@ -93,21 +95,34 @@ function assertLoggable(day: string, today: string) {
   if (delta > 1) throw new Error("You can only edit today and yesterday");
 }
 
-async function afterLog() {
-  const store = db();
-  const data = await store.read();
+/** Merge a just-written entry into the in-memory snapshot, so celebration
+ *  detection can run on it without a second full database read. */
+function applyEntry(data: DB, entry: Entry) {
+  const i = data.entries.findIndex((e) => e.habitId === entry.habitId && e.day === entry.day);
+  if (i >= 0) data.entries[i] = entry;
+  else data.entries.push(entry);
+}
+
+async function afterLog(store: Store, data: DB) {
   const today = todayInTz(data.config.timezone);
   const existing = new Set(data.celebrations.map((c) => c.key));
   const fresh = detectCelebrations(data.config, data.habits, data.entries, today, existing);
   if (fresh.length) {
     await store.addCelebrations(fresh);
     const best = fresh[fresh.length - 1];
-    await sendPush("sponsor", {
-      title: `${data.config.heroName || "She"} just hit: ${best.title}`,
-      body: best.body,
-      url: "/sponsor",
-      tag: best.key,
-    });
+    // After the response is sent — a tick shouldn't wait on push delivery.
+    after(() =>
+      sendPush(
+        "sponsor",
+        {
+          title: `${data.config.heroName || "She"} just hit: ${best.title}`,
+          body: best.body,
+          url: "/sponsor",
+          tag: best.key,
+        },
+        data.pushSubs,
+      ),
+    );
   }
   refresh();
 }
@@ -132,7 +147,8 @@ export async function setHabitValue(habitId: string, day: string, value: number)
     updatedAt: new Date().toISOString(),
   };
   await store.upsertEntry(entry);
-  await afterLog();
+  applyEntry(data, entry);
+  await afterLog(store, data);
 }
 
 export async function toggleSubItem(habitId: string, day: string, idx: number) {
@@ -149,15 +165,17 @@ export async function toggleSubItem(habitId: string, day: string, idx: number) {
   const subDone = [...(prev?.subDone ?? new Array(habit.subItems.length).fill(false))];
   subDone[idx] = !subDone[idx];
 
-  await store.upsertEntry({
+  const entry: Entry = {
     habitId,
     day,
     value: subDone.filter(Boolean).length,
     subDone,
     note: prev?.note,
     updatedAt: new Date().toISOString(),
-  });
-  await afterLog();
+  };
+  await store.upsertEntry(entry);
+  applyEntry(data, entry);
+  await afterLog(store, data);
 }
 
 export async function setSleepTimes(
@@ -176,7 +194,7 @@ export async function setSleepTimes(
   if (habit?.kind !== "sleep") throw new Error("Not a sleep habit");
 
   const prev = data.entries.find((e) => e.habitId === habitId && e.day === day);
-  await store.upsertEntry({
+  const entry: Entry = {
     habitId,
     day,
     // `value` stays as a rough "logged at all" flag; the times are the truth.
@@ -186,8 +204,10 @@ export async function setSleepTimes(
     wakeTime: wakeTime || undefined,
     note: prev?.note,
     updatedAt: new Date().toISOString(),
-  });
-  await afterLog();
+  };
+  await store.upsertEntry(entry);
+  applyEntry(data, entry);
+  await afterLog(store, data);
 }
 
 export async function markSeen(keys: string[]) {
@@ -216,6 +236,7 @@ export async function sendMessage(body: string) {
   if (!text) return;
 
   const store = db();
+  const { config, pushSubs } = await store.read();
   await store.addNudge({
     id: `n_${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
     from: role,
@@ -224,16 +245,22 @@ export async function sendMessage(body: string) {
     readAt: null,
   });
 
-  const { config } = await store.read();
   const toSponsor = role === "hero";
-  await sendPush(toSponsor ? "sponsor" : "hero", {
-    title: toSponsor
-      ? `${config.heroName || "She"} replied 💬`
-      : `${config.sponsorName || "A message for you"} 💌`,
-    body: text,
-    url: toSponsor ? "/sponsor" : "/today",
-    tag: "message",
-  });
+  // After the response is sent — sending shouldn't wait on push delivery.
+  after(() =>
+    sendPush(
+      toSponsor ? "sponsor" : "hero",
+      {
+        title: toSponsor
+          ? `${config.heroName || "She"} replied 💬`
+          : `${config.sponsorName || "A message for you"} 💌`,
+        body: text,
+        url: toSponsor ? "/sponsor" : "/today",
+        tag: "message",
+      },
+      pushSubs,
+    ),
+  );
   refresh();
 }
 
@@ -320,6 +347,19 @@ export async function updateDeal(patch: Partial<Config>) {
   await requireRole("sponsor");
   await db().patchConfig(patch);
   refresh();
+}
+
+/** Sponsor-only: pull Day 1 back to today, for when the deal was seeded or
+ *  configured before she actually began. Nothing else is touched — anything
+ *  logged before the new start date simply falls outside the window. */
+export async function resetStartDate(): Promise<string> {
+  await requireRole("sponsor");
+  const store = db();
+  const { config } = await store.read();
+  const today = todayInTz(config.timezone);
+  await store.patchConfig({ startDate: today });
+  refresh();
+  return today;
 }
 
 export async function saveHabit(habit: Habit) {

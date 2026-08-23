@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updateDeal } from "@/app/actions";
+import { resetStartDate, updateDeal } from "@/app/actions";
 import { money } from "@/lib/money";
 import { sfx } from "@/lib/sfx";
 import type { Config } from "@/lib/types";
@@ -10,6 +10,8 @@ export function DealSettings({ config, maxPoints }: { config: Config; maxPoints:
   const [d, setD] = useState(config);
   const [saved, setSaved] = useState(false);
   const [pending, start] = useTransition();
+  const [resetDone, setResetDone] = useState(false);
+  const [resetting, startReset] = useTransition();
 
   const dirty = JSON.stringify(d) !== JSON.stringify(config);
   const targetPoints = (maxPoints * Number(d.rewardTargetPct)) / 100;
@@ -82,6 +84,26 @@ export function DealSettings({ config, maxPoints }: { config: Config; maxPoints:
             <input type="number" min={7} max={365} className={input} value={d.totalDays} onChange={(e) => set("totalDays", Number(e.target.value))} />
           </Field>
         </div>
+        <button
+          type="button"
+          disabled={resetting}
+          onClick={() => {
+            sfx.done();
+            setResetDone(false);
+            startReset(async () => {
+              const today = await resetStartDate();
+              set("startDate", today);
+              setResetDone(true);
+            });
+          }}
+          className="press w-full rounded-xl border-line bg-surface-2 py-3 text-[12px] font-black tracking-wide text-text uppercase disabled:text-faint"
+        >
+          {resetting ? "Resetting…" : resetDone ? "Done — today is Day 1 ✓" : "Restart the clock — make today Day 1"}
+        </button>
+        <p className="text-[11.5px] leading-snug font-semibold text-muted">
+          Saves immediately, no need to hit the button below. Use it if the challenge is counting
+          from the wrong day — like showing it starts tomorrow.
+        </p>
         <Field label="Timezone">
           <input className={input} value={d.timezone} onChange={(e) => set("timezone", e.target.value)} />
         </Field>

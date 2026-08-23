@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { db } from "./db";
 import { pickLine } from "./coach";
 import { addDays, timeInTz, todayInTz, weekOf } from "./dates";
@@ -12,7 +14,12 @@ import {
 } from "./scoring";
 import type { DB, Situation } from "./types";
 
-export async function loadState() {
+/**
+ * Request-memoised via React cache(): the layout and the page each call this
+ * during one render, and it used to hit the database twice for identical
+ * data. Now the second caller gets the first caller's result.
+ */
+export const loadState = cache(async () => {
   const store = db();
   const data: DB = await store.read();
   const { config, habits } = data;
@@ -88,7 +95,7 @@ export async function loadState() {
     situation,
     coach,
   };
-}
+});
 
 /** Which kind of line fits where she is right now. Order matters — first wins. */
 function pickSituation(x: {

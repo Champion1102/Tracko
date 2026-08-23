@@ -1,6 +1,6 @@
 import webpush from "web-push";
 import { db } from "./db";
-import type { Role } from "./types";
+import type { PushSub, Role } from "./types";
 
 let configured: boolean | null = null;
 
@@ -25,11 +25,12 @@ export type PushPayload = {
   tag?: string;
 };
 
-/** Fire-and-forget. Dead subscriptions are pruned as we discover them. */
-export async function sendPush(role: Role, payload: PushPayload): Promise<number> {
+/** Fire-and-forget. Dead subscriptions are pruned as we discover them.
+ *  Pass `subs` when the caller already has them — it saves a full db read. */
+export async function sendPush(role: Role, payload: PushPayload, subs?: PushSub[]): Promise<number> {
   if (!ensure()) return 0;
   const store = db();
-  const { pushSubs } = await store.read();
+  const pushSubs = subs ?? (await store.read()).pushSubs;
   const targets = pushSubs.filter((s) => s.role === role);
   let sent = 0;
 

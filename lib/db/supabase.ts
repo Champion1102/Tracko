@@ -80,15 +80,16 @@ export class SupabaseStore implements Store {
     });
   }
 
-  /** First boot on an empty database: lay down config, habits and letters. */
-  private async ensureSeeded(): Promise<Config> {
-    const { data } = await this.sb.from("config").select("data").eq("id", 1).maybeSingle();
-    const defaults = defaultConfig(todayInTz("Asia/Kolkata"));
-    // Field-level merge so a config saved before a new setting existed still
-    // picks up that setting's default rather than reading undefined.
-    if (data?.data) return { ...defaults, ...(data.data as Config) };
+  /** Field-level merge so a config saved before a new setting existed still
+   *  picks up that setting's default rather than reading undefined. */
+  private mergeConfig(row: { data: unknown } | null): Config | null {
+    if (!row?.data) return null;
+    return { ...defaultConfig(todayInTz("Asia/Kolkata")), ...(row.data as Config) };
+  }
 
-    const config = defaults;
+  /** First boot on an empty database: lay down config, habits and letters. */
+  private async seed(): Promise<Config> {
+    const config = defaultConfig(todayInTz("Asia/Kolkata"));
     await this.sb.from("config").upsert({ id: 1, data: config });
     await this.sb.from("habits").upsert(SEED_HABITS.map(fromHabit));
     await this.sb.from("letters").upsert(
@@ -103,10 +104,17 @@ export class SupabaseStore implements Store {
     return config;
   }
 
+  private async ensureSeeded(): Promise<Config> {
+    const { data } = await this.sb.from("config").select("data").eq("id", 1).maybeSingle();
+    return this.mergeConfig(data) ?? (await this.seed());
+  }
+
   async read(): Promise<DB> {
-    const config = await this.ensureSeeded();
-    const [habits, entries, letters, nudges, celebrations, pushSubs, coach, photos, chat, expenses] =
+    // Config rides in the same parallel batch as everything else — a serial
+    // "is it seeded yet?" round trip in front of every read was pure latency.
+    const [configRow, habits, entries, letters, nudges, celebrations, pushSubs, coach, photos, chat, expenses] =
       await Promise.all([
+      this.sb.from("config").select("data").eq("id", 1).maybeSingle(),
       this.sb.from("habits").select("*").order("sort_order"),
       this.sb.from("entries").select("*"),
       this.sb.from("letters").select("*").order("unlock_day"),
@@ -121,6 +129,8 @@ export class SupabaseStore implements Store {
       this.sb.from("chat").select("*").order("created_at", { ascending: false }).limit(400),
       this.sb.from("expenses").select("*").order("day", { ascending: false }).limit(5000),
     ]);
+
+    const config = this.mergeConfig(configRow.data) ?? (await this.seed());
 
     return {
       config,
