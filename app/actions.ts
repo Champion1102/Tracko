@@ -229,18 +229,36 @@ export async function spendFreeze(day: string) {
 
 // ---------------------------------------------------------------- sponsor
 
-/** Both directions go through here; the sender's role decides who gets pinged. */
-export async function sendMessage(body: string) {
+/** Both directions go through here; the sender's role decides who gets pinged.
+ *  FormData so a photo can ride along: `text` plus an optional `image` file
+ *  (compressed client-side before it gets here). */
+export async function sendMessage(formData: FormData) {
   const role = await requireRole("hero", "sponsor");
-  const text = body.trim().slice(0, 400);
-  if (!text) return;
+  const text = String(formData.get("text") ?? "").trim().slice(0, 400);
+  const file = formData.get("image");
+  const hasImage = file instanceof File && file.size > 0;
+  if (!text && !hasImage) return;
 
   const store = db();
   const { config, pushSubs } = await store.read();
+
+  const id = `n_${Date.now()}${Math.random().toString(36).slice(2, 6)}`;
+  let image: string | undefined;
+  if (hasImage) {
+    if (!file.type.startsWith("image/")) throw new Error("Only images can be attached");
+    // The client compresses to ~1400px JPEG; anything bigger means that step
+    // was bypassed. Refuse rather than stuff megabytes into the bucket.
+    if (file.size > 4_000_000) throw new Error("That image is too large");
+    const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+    image = `chat/${id}.${ext}`;
+    await store.saveChatMedia(image, Buffer.from(await file.arrayBuffer()), file.type);
+  }
+
   await store.addNudge({
-    id: `n_${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
+    id,
     from: role,
     body: text,
+    image,
     sentAt: new Date().toISOString(),
     readAt: null,
   });
@@ -254,7 +272,7 @@ export async function sendMessage(body: string) {
         title: toSponsor
           ? `${config.heroName || "She"} replied 💬`
           : `${config.sponsorName || "A message for you"} 💌`,
-        body: text,
+        body: text || "📷 Photo",
         url: toSponsor ? "/sponsor" : "/today",
         tag: "message",
       },

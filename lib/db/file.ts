@@ -242,11 +242,21 @@ export class FileStore implements Store {
   }
 
   async photoUrl(photo: Photo) {
+    return this.mediaUrl(photo.path);
+  }
+
+  async saveChatMedia(mediaPath: string, bytes: Buffer) {
+    const dest = path.join(UPLOADS, mediaPath);
+    await fs.mkdir(path.dirname(dest), { recursive: true });
+    await fs.writeFile(dest, bytes);
+  }
+
+  async mediaUrl(mediaPath: string) {
     try {
-      const bytes = await fs.readFile(path.join(UPLOADS, photo.path));
+      const bytes = await fs.readFile(path.join(UPLOADS, mediaPath));
       // Label it with what it actually is. Chrome sniffs past a wrong type,
       // iOS Safari — which is the whole point of this being a PWA — does not.
-      const ext = photo.path.split(".").pop()?.toLowerCase();
+      const ext = mediaPath.split(".").pop()?.toLowerCase();
       const mime =
         ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
       return `data:${mime};base64,${bytes.toString("base64")}`;

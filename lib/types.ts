@@ -80,6 +80,8 @@ export type Nudge = {
   /** Who wrote it. Anything not from you counts as unread for you. */
   from: Role;
   body: string;
+  /** Storage path of an attached photo, if any. */
+  image?: string | null;
   sentAt: string;
   readAt: string | null;
 };

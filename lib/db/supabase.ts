@@ -154,6 +154,7 @@ export class SupabaseStore implements Store {
         id: n.id,
         from: (n.sender ?? "sponsor") as Role,
         body: n.body,
+        image: n.image_path ?? null,
         sentAt: n.sent_at,
         readAt: n.read_at,
       })),
@@ -251,6 +252,7 @@ export class SupabaseStore implements Store {
       id: nudge.id,
       sender: nudge.from,
       body: nudge.body,
+      image_path: nudge.image ?? null,
       sent_at: nudge.sentAt,
       read_at: null,
     });
@@ -357,9 +359,20 @@ export class SupabaseStore implements Store {
   }
 
   async photoUrl(photo: Photo) {
+    return this.mediaUrl(photo.path);
+  }
+
+  async saveChatMedia(path: string, bytes: Buffer, contentType: string) {
+    const { error } = await this.sb.storage
+      .from(BUCKET)
+      .upload(path, bytes, { contentType, upsert: false });
+    if (error) throw new Error(`Upload failed: ${error.message}`);
+  }
+
+  async mediaUrl(path: string) {
     // Bucket is private; hand out a short-lived signed URL rather than making
-    // her progress photos publicly guessable.
-    const { data } = await this.sb.storage.from(BUCKET).createSignedUrl(photo.path, 60 * 60);
+    // her photos publicly guessable.
+    const { data } = await this.sb.storage.from(BUCKET).createSignedUrl(path, 60 * 60);
     return data?.signedUrl ?? null;
   }
 }

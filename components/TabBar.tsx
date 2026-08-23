@@ -5,13 +5,13 @@ import { usePathname } from "next/navigation";
 import { Icon } from "@/components/Icon";
 import { sfx } from "@/lib/sfx";
 
+// Daily stops only — Stats, Money, Gallery and Settings live in the
+// hamburger drawer (SideNav), so this row stays uncrowded.
 const TABS = [
   { href: "/today", label: "Today", icon: Icon.today },
   { href: "/journey", label: "Journey", icon: Icon.journey },
   { href: "/chat", label: "Nimbus", icon: Icon.chat },
   { href: "/reward", label: "Reward", icon: Icon.trophy },
-  { href: "/stats", label: "Stats", icon: Icon.chart },
-  { href: "/settings", label: "You", icon: Icon.person },
 ];
 
 export function TabBar({ badge = 0 }: { badge?: number }) {

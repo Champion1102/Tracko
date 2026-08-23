@@ -35,6 +35,9 @@ export interface Store {
   deletePhoto(id: string): Promise<void>;
   /** Something the browser can render: a data/blob URL or a signed https URL. */
   photoUrl(photo: Photo): Promise<string | null>;
+  /** Chat attachments: store bytes under a path, resolve a path to a URL. */
+  saveChatMedia(path: string, bytes: Buffer, contentType: string): Promise<void>;
+  mediaUrl(path: string): Promise<string | null>;
   addChatMessages(messages: ChatMessage[]): Promise<void>;
   clearChat(): Promise<void>;
   addExpense(expense: Expense): Promise<void>;

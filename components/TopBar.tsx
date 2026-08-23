@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
+import { SideNav } from "@/components/SideNav";
 import { money } from "@/lib/money";
 import type { Totals } from "@/lib/scoring";
 import type { Config } from "@/lib/types";
@@ -18,6 +19,10 @@ export function TopBar({
   return (
     <header className="safe-top sticky top-0 z-20 border-b border-line-soft bg-ink-2/92 backdrop-blur-xl">
       <div className="mx-auto flex max-w-md items-center gap-3 px-4 py-2.5">
+        {/* Money, Gallery, Stats, Settings and the sponsor thread live behind
+            this — the tab bar stays for the daily stops only. */}
+        <SideNav sponsorName={config.sponsorName} unread={unread} />
+
         <div className="flex items-center gap-1.5">
           <Icon.flame
             size={17}
@@ -46,20 +51,9 @@ export function TopBar({
           </span>
         </Link>
 
-        {/* Beside the reward, not in the tab bar — a seventh tab crowded the
-            row, and this belongs next to the other money on screen. */}
-        <Link
-          href="/money"
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-violet/35 bg-violet/12"
-          aria-label="Money"
-          title="Money"
-        >
-          <Icon.wallet size={16} className="text-violet" />
-        </Link>
-
         {unread > 0 && (
           <Link
-            href="/today#messages"
+            href="/messages"
             className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full border border-rose/35 bg-rose/12"
             aria-label={`${unread} unread messages`}
           >

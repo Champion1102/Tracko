@@ -63,6 +63,8 @@ create table if not exists nudges (
 -- Backfills the column on databases created before `sender` existed. Placed
 -- after the create so a fresh run doesn't hit a table that isn't there yet.
 alter table nudges add column if not exists sender text not null default 'sponsor';
+-- Chat photo attachments: a storage path in the proof bucket, or null.
+alter table nudges add column if not exists image_path text;
 
 create table if not exists celebrations (
   key        text primary key,

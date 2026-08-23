@@ -186,7 +186,7 @@ export function HabitCard({
   );
 }
 
-function SleepLog({
+export function SleepLog({
   day,
   habitId,
   bedtime,
@@ -263,7 +263,7 @@ function SleepLog({
   );
 }
 
-function Stepper({
+export function Stepper({
   habitKind,
   value,
   target,

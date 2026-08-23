@@ -14,6 +14,18 @@ const OPENERS = [
   "I don't feel like it today",
 ];
 
+/** "Today", "Yesterday", or "Wed 20 Aug" — chips between message days. */
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+  if (same(d, today)) return "Today";
+  if (same(d, yesterday)) return "Yesterday";
+  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+}
+
 export function ChatRoom({
   initial,
   heroName,
@@ -90,9 +102,17 @@ export function ChatRoom({
           </div>
         </div>
       ) : (
-        <div className="flex-1 space-y-3 pb-2">
-          {messages.map((m) => {
+        <div className="flex flex-1 flex-col justify-end space-y-3 pb-2">
+          <div className="flex items-center justify-center gap-2 pb-1">
+            <Character role="chat" mood="happy" size={30} />
+            <p className="text-[11px] font-bold text-faint">
+              Nimbus — sees your streak, habits and the reward
+            </p>
+          </div>
+          {messages.map((m, i) => {
             const mine = m.who === "her";
+            const prev = messages[i - 1];
+            const newDay = !prev || dayLabel(prev.createdAt) !== dayLabel(m.createdAt);
             return (
               <motion.div
                 key={m.id}
@@ -100,8 +120,14 @@ export function ChatRoom({
                 // opacity, or the whole transcript arrives invisible.
                 initial={false}
                 animate={{ opacity: 1, y: 0 }}
-                className={`flex items-end gap-2 ${mine ? "justify-end" : "justify-start"}`}
+                className="space-y-3"
               >
+                {newDay && (
+                  <p className="pt-1 text-center text-[10.5px] font-black tracking-wide text-faint uppercase">
+                    {dayLabel(m.createdAt)}
+                  </p>
+                )}
+                <div className={`flex items-end gap-2 ${mine ? "justify-end" : "justify-start"}`}>
                 {!mine && (
                   <span className="mb-1 shrink-0">
                     <Character role="chat" mood="happy" size={40} />
@@ -117,6 +143,7 @@ export function ChatRoom({
                   <p className="text-[14px] leading-relaxed font-bold whitespace-pre-wrap">
                     {m.body}
                   </p>
+                </div>
                 </div>
               </motion.div>
             );
@@ -157,9 +184,24 @@ export function ChatRoom({
         </p>
       )}
 
+      {messages.length > 0 && (
+        <div className="-mx-1 mb-2 flex gap-2 overflow-x-auto px-1 pb-0.5">
+          {OPENERS.map((o) => (
+            <button
+              key={o}
+              onClick={() => send(o)}
+              disabled={thinking}
+              className="shrink-0 rounded-full border border-line bg-surface-2 px-3.5 py-2 text-[12px] font-bold whitespace-nowrap text-muted disabled:opacity-50"
+            >
+              {o}
+            </button>
+          ))}
+        </div>
+      )}
+
       <p className="mb-2 text-center text-[11px] leading-snug font-semibold text-faint">
         I&apos;m a cloud in an app, not a person.{" "}
-        <Link href="/today#messages" className="text-rose underline">
+        <Link href="/messages" className="text-rose underline">
           {sponsorName || "Your friend"} is one tap away
         </Link>{" "}
         when it matters.

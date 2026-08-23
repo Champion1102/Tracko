@@ -4,7 +4,7 @@ import { logoutAction } from "@/app/actions";
 import { currentRole, needsPinSetup } from "@/lib/auth";
 import { coachConfigured, coachProviderNames } from "@/lib/coach";
 import { prettyDay } from "@/lib/dates";
-import { usingSupabase } from "@/lib/db";
+import { db, usingSupabase } from "@/lib/db";
 import { money } from "@/lib/money";
 import { loadState } from "@/lib/state";
 import { CoachTester } from "@/components/CoachTester";
@@ -13,7 +13,7 @@ import { DysonBuild } from "@/components/DysonBuild";
 import { HabitIcon } from "@/components/HabitIcon";
 import { HabitEditor } from "@/components/HabitEditor";
 import { LetterEditor } from "@/components/LetterEditor";
-import { Messages } from "@/components/Messages";
+import { ChatThread, type NudgeWithUrl } from "@/components/ChatThread";
 import { PromiseEditor } from "@/components/PromiseEditor";
 import { PushSetup } from "@/components/PushSetup";
 import { RewardImage } from "@/components/RewardImage";
@@ -28,6 +28,14 @@ export default async function SponsorPage() {
 
   const s = await loadState();
   if (needsPinSetup(s.config, role)) redirect("/set-pin");
+
+  // Signed URLs for any photo messages in the thread, resolved together.
+  const nudges: NudgeWithUrl[] = await Promise.all(
+    s.nudges.map(async (n) => ({
+      ...n,
+      imageUrl: n.image ? await db().mediaUrl(n.image) : null,
+    })),
+  );
   const { totals, todayScore, config, days } = s;
   const cur = config.currency;
   const done = todayScore.perHabit.filter((p) => p.done);
@@ -144,13 +152,14 @@ export default async function SponsorPage() {
         )}
       </section>
 
-      <Messages
-        nudges={s.nudges}
-        unread={s.unreadForSponsor.length}
-        me="sponsor"
-        otherName={config.heroName}
-        startOpen
-      />
+      <section className="card h-[440px] overflow-hidden">
+        <ChatThread
+          nudges={nudges}
+          unread={s.unreadForSponsor.length}
+          me="sponsor"
+          otherName={config.heroName || "Her"}
+        />
+      </section>
 
       <section className="card p-4">
         <h2 className="mb-3 text-[11px] font-black tracking-[0.16em] text-faint uppercase">
