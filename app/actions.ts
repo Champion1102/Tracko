@@ -47,13 +47,22 @@ export async function loginAction(_prev: unknown, formData: FormData) {
     return { error: `Too many tries. Try again in ${mins} min.` };
   }
 
-  const role = await verifyPin(pin);
+  // One read, and a failed one is "try again" — never a reason to treat the
+  // app as fresh. Nothing is written before the config is known to be real.
+  let config: Config;
+  try {
+    ({ config } = await db().read());
+  } catch (err) {
+    console.error("login: database read failed", err);
+    return { error: "Couldn't reach the database. Try again in a moment." };
+  }
+
+  const role = await verifyPin(pin, config);
   if (!role) return { error: "That PIN doesn't match." };
 
   clearAttempts(`login:${ip}`);
   await startSession(role);
 
-  const { config } = await db().read();
   // Still on the bootstrap PIN handed to them — make them choose their own.
   if (needsPinSetup(config, role)) redirect("/set-pin");
   if (role === "sponsor") redirect("/sponsor");

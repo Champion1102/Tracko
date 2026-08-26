@@ -71,6 +71,15 @@ const fromHabit = (h: Habit): HabitRow => ({
 
 const BUCKET = "proof";
 
+/**
+ * A failed query must surface as a failed request, never as "no rows".
+ * Treating an errored config read as an empty database is exactly how the
+ * real config row once got silently overwritten with defaults.
+ */
+function check(res: { error: { message: string } | null }, what: string): void {
+  if (res.error) throw new Error(`Supabase ${what}: ${res.error.message}`);
+}
+
 export class SupabaseStore implements Store {
   private sb: SupabaseClient;
 
@@ -87,26 +96,57 @@ export class SupabaseStore implements Store {
     return { ...defaultConfig(todayInTz("Asia/Kolkata")), ...(row.data as Config) };
   }
 
-  /** First boot on an empty database: lay down config, habits and letters. */
+  /**
+   * First boot on a genuinely empty database: lay down config, habits and
+   * letters. Two guarantees so this can never become a reset:
+   *  - it refuses to run if she has logged anything — a missing config row
+   *    next to real entries is a broken database to repair by hand, not a
+   *    fresh one;
+   *  - every write is insert-if-absent, so even if it did run against a
+   *    populated database it could not overwrite a single row.
+   * Only the sponsor's explicit actions (restart the clock, redo the welcome)
+   * ever change existing data, and neither of those deletes anything.
+   */
   private async seed(): Promise<Config> {
-    const config = defaultConfig(todayInTz("Asia/Kolkata"));
-    await this.sb.from("config").upsert({ id: 1, data: config });
-    await this.sb.from("habits").upsert(SEED_HABITS.map(fromHabit));
-    await this.sb.from("letters").upsert(
-      SEED_LETTERS.map((l) => ({
-        id: l.id,
-        unlock_day: l.unlockDay,
-        title: l.title,
-        body: l.body,
-        opened_at: null,
-      })),
+    const logged = await this.sb.from("entries").select("*", { count: "exact", head: true });
+    check(logged, "count entries");
+    if ((logged.count ?? 0) > 0) {
+      throw new Error(
+        "config row is missing but entries exist — refusing to seed over her data. Restore the config row by hand.",
+      );
+    }
+
+    const ifAbsent = { onConflict: "id", ignoreDuplicates: true } as const;
+    const defaults = defaultConfig(todayInTz("Asia/Kolkata"));
+    check(await this.sb.from("config").upsert({ id: 1, data: defaults }, ifAbsent), "seed config");
+    check(await this.sb.from("habits").upsert(SEED_HABITS.map(fromHabit), ifAbsent), "seed habits");
+    check(
+      await this.sb.from("letters").upsert(
+        SEED_LETTERS.map((l) => ({
+          id: l.id,
+          unlock_day: l.unlockDay,
+          title: l.title,
+          body: l.body,
+          opened_at: null,
+        })),
+        ifAbsent,
+      ),
+      "seed letters",
     );
+
+    // Re-read rather than trust `defaults`: if a concurrent first request won
+    // the insert, its row is the truth.
+    const row = await this.sb.from("config").select("data").eq("id", 1).maybeSingle();
+    check(row, "read config after seed");
+    const config = this.mergeConfig(row.data);
+    if (!config) throw new Error("Supabase: config row still missing after seed");
     return config;
   }
 
-  private async ensureSeeded(): Promise<Config> {
-    const { data } = await this.sb.from("config").select("data").eq("id", 1).maybeSingle();
-    return this.mergeConfig(data) ?? (await this.seed());
+  private async loadConfig(): Promise<Config> {
+    const row = await this.sb.from("config").select("data").eq("id", 1).maybeSingle();
+    check(row, "read config");
+    return this.mergeConfig(row.data) ?? (await this.seed());
   }
 
   async read(): Promise<DB> {
@@ -129,6 +169,12 @@ export class SupabaseStore implements Store {
       this.sb.from("chat").select("*").order("created_at", { ascending: false }).limit(400),
       this.sb.from("expenses").select("*").order("day", { ascending: false }).limit(5000),
     ]);
+
+    // Any failed query fails the whole read. An empty screen would be worse
+    // than an error — and an "empty" config must never be mistaken for a
+    // fresh database (see seed()).
+    const results = { config: configRow, habits, entries, letters, nudges, celebrations, push_subs: pushSubs, coach, photos, chat, expenses };
+    for (const [table, res] of Object.entries(results)) check(res, `read ${table}`);
 
     const config = this.mergeConfig(configRow.data) ?? (await this.seed());
 
@@ -201,9 +247,9 @@ export class SupabaseStore implements Store {
   }
 
   async patchConfig(patch: Partial<Config>): Promise<Config> {
-    const current = await this.ensureSeeded();
+    const current = await this.loadConfig();
     const next = { ...current, ...patch };
-    await this.sb.from("config").upsert({ id: 1, data: next });
+    check(await this.sb.from("config").upsert({ id: 1, data: next }), "write config");
     return next;
   }
 

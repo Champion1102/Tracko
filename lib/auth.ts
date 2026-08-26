@@ -84,12 +84,12 @@ function safeEqual(a: string, b: string): boolean {
 /**
  * Resolve a PIN to a role. For each role: if they've set their own PIN, check
  * it against the stored hash; otherwise fall back to the environment bootstrap
- * PIN. Both branches are constant-time.
+ * PIN. Both branches are constant-time. Takes the config rather than reading
+ * it, so the caller does one read and decides what a failed read means.
  */
-export async function verifyPin(pin: string): Promise<Role | null> {
+export async function verifyPin(pin: string, config: Config): Promise<Role | null> {
   const clean = pin.trim();
   if (!clean) return null;
-  const { config } = await db().read();
 
   for (const role of ["hero", "sponsor"] as const) {
     const hash = configHash(config, role);
