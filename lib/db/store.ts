@@ -7,6 +7,7 @@ import type {
   Entry,
   Expense,
   Habit,
+  JournalEntry,
   Letter,
   Nudge,
   Photo,
@@ -43,4 +44,6 @@ export interface Store {
   addExpense(expense: Expense): Promise<void>;
   updateExpense(id: string, patch: ExpensePatch): Promise<void>;
   deleteExpense(id: string): Promise<void>;
+  upsertJournal(entry: JournalEntry): Promise<void>;
+  deleteJournal(day: string): Promise<void>;
 }

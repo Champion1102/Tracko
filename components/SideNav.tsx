@@ -48,10 +48,9 @@ export function SideNav({ sponsorName, unread }: { sponsorName: string; unread: 
       tint: "bg-rose/15 text-rose",
       badge: unread > 0,
     },
-    { href: "/stats", label: "Stats", blurb: "Streaks, heatmap, what sticks", icon: Icon.chart, tint: "bg-aqua/15 text-aqua", badge: false },
-    { href: "/money", label: "Money", blurb: "Spending, verdicts", icon: Icon.wallet, tint: "bg-violet/15 text-violet", badge: false },
-    { href: "/gallery", label: "Gallery", blurb: "Proof photos, day by day", icon: Icon.photos, tint: "bg-grass/15 text-grass", badge: false },
-    { href: "/settings", label: "You", blurb: "Reminders, sound, theme, PIN", icon: Icon.person, tint: "bg-gold/15 text-gold", badge: false },
+    { href: "/money", label: "Money", blurb: "Where it goes, only you see it", icon: Icon.wallet, tint: "bg-violet/15 text-violet", badge: false },
+    { href: "/gallery", label: "Gallery", blurb: "Your photos, day by day", icon: Icon.photos, tint: "bg-grass/15 text-grass", badge: false },
+    { href: "/settings", label: "You", blurb: "Reminders, look, sound, PIN", icon: Icon.person, tint: "bg-gold/15 text-gold", badge: false },
   ];
 
   return (
@@ -156,7 +155,7 @@ export function SideNav({ sponsorName, unread }: { sponsorName: string; unread: 
                           </span>
                           <span className="min-w-0 flex-1">
                             <span
-                              className={`block text-[14px] font-black ${active ? "text-gold" : "text-text"}`}
+                              className={`block text-[14px] font-black ${active ? "text-grass" : "text-text"}`}
                             >
                               {item.label}
                             </span>

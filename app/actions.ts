@@ -19,7 +19,7 @@ import { diffDays, todayInTz } from "@/lib/dates";
 import { detectCelebrations } from "@/lib/scoring";
 import { sendPush } from "@/lib/push";
 import type { Store } from "@/lib/db";
-import type { Config, DB, Entry, Habit, Role } from "@/lib/types";
+import type { Config, DB, Entry, Habit, JournalMood, Role } from "@/lib/types";
 
 async function requireRole(...roles: Role[]): Promise<Role> {
   const role = await currentRole();
@@ -187,12 +187,23 @@ export async function toggleSubItem(habitId: string, day: string, idx: number) {
   await afterLog(store, data);
 }
 
-export async function setSleepTimes(
-  habitId: string,
-  day: string,
-  bedtime: string,
-  wakeTime: string,
-) {
+/** "" for nothing, otherwise a normalised http(s) URL — a bare
+ *  "linkedin.com/posts/…" is what she'll actually paste. */
+function normalizeUrl(raw: string): string {
+  const text = raw.trim();
+  if (!text) return "";
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : `https://${text}`;
+  try {
+    const url = new URL(withScheme);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return "";
+    return url.toString().slice(0, 500);
+  } catch {
+    return "";
+  }
+}
+
+/** Link-proof habits: pasting a link is also the tick. Clearing keeps the tick. */
+export async function setHabitLink(habitId: string, day: string, url: string) {
   await requireRole("hero");
   const store = db();
   const data = await store.read();
@@ -200,18 +211,18 @@ export async function setSleepTimes(
   assertLoggable(day, today);
 
   const habit = data.habits.find((h) => h.id === habitId);
-  if (habit?.kind !== "sleep") throw new Error("Not a sleep habit");
+  if (!habit) throw new Error("Unknown habit");
+
+  const link = normalizeUrl(url);
+  if (url.trim() && !link) throw new Error("That doesn't look like a link");
 
   const prev = data.entries.find((e) => e.habitId === habitId && e.day === day);
   const entry: Entry = {
     habitId,
     day,
-    // `value` stays as a rough "logged at all" flag; the times are the truth.
-    value: bedtime && wakeTime ? 1 : 0,
+    value: link ? Math.max(prev?.value ?? 0, 1) : (prev?.value ?? 0),
     subDone: prev?.subDone ?? [],
-    bedtime: bedtime || undefined,
-    wakeTime: wakeTime || undefined,
-    note: prev?.note,
+    note: link || undefined,
     updatedAt: new Date().toISOString(),
   };
   await store.upsertEntry(entry);
@@ -226,13 +237,46 @@ export async function markSeen(keys: string[]) {
   refresh();
 }
 
-export async function spendFreeze(day: string) {
+// ---------------------------------------------------------------- journal
+
+const MOODS: JournalMood[] = [1, 2, 3, 4, 5];
+
+/**
+ * Autosaved from the editor, so this deliberately does NOT revalidate — a
+ * refresh landing mid-sentence would hand the editor a stale body. The page
+ * re-reads on the next navigation, which is soon enough for a diary.
+ */
+export async function saveJournal(day: string, body: string, mood: JournalMood | null) {
   await requireRole("hero");
   const store = db();
-  const { config } = await store.read();
-  if (config.freezeDays.includes(day)) return;
-  if (config.freezeDays.length >= config.freezesTotal) throw new Error("No freezes left");
-  await store.patchConfig({ freezeDays: [...config.freezeDays, day] });
+  const data = await store.read();
+  const today = todayInTz(data.config.timezone);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || diffDays(day, today) < 0) {
+    throw new Error("Can't write a future day");
+  }
+
+  const text = body.trim().slice(0, 5000);
+  const chosen = mood !== null && MOODS.includes(mood) ? mood : null;
+  const prev = data.journal.find((j) => j.day === day);
+
+  if (!text && chosen === null) {
+    if (prev) await store.deleteJournal(day);
+    return;
+  }
+
+  const now = new Date().toISOString();
+  await store.upsertJournal({
+    day,
+    body: text,
+    mood: chosen,
+    createdAt: prev?.createdAt ?? now,
+    updatedAt: now,
+  });
+}
+
+export async function deleteJournal(day: string) {
+  await requireRole("hero");
+  await db().deleteJournal(day);
   refresh();
 }
 
@@ -282,7 +326,7 @@ export async function sendMessage(formData: FormData) {
           ? `${config.heroName || "She"} replied 💬`
           : `${config.sponsorName || "A message for you"} 💌`,
         body: text || "📷 Photo",
-        url: toSponsor ? "/sponsor" : "/today",
+        url: toSponsor ? "/sponsor" : "/messages",
         tag: "message",
       },
       pushSubs,
@@ -366,10 +410,7 @@ export async function updateReminders(
   refresh();
 }
 
-/**
- * The terms of the deal. Sponsor only — she is the one being held to these,
- * so letting her move the finish line would make the whole thing meaningless.
- */
+/** The frame of the challenge. Sponsor only — she doesn't move the clock. */
 export async function updateDeal(patch: Partial<Config>) {
   await requireRole("sponsor");
   await db().patchConfig(patch);

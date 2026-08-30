@@ -8,8 +8,6 @@ import { completeOnboarding } from "@/app/actions";
 import { Character } from "@/components/character";
 import { HabitIcon } from "@/components/HabitIcon";
 import { PushSetup } from "@/components/PushSetup";
-import { RewardImage } from "@/components/RewardImage";
-import { money } from "@/lib/money";
 import { sfx } from "@/lib/sfx";
 import type { Habit } from "@/lib/types";
 import { HoldToSeal } from "./HoldToSeal";
@@ -17,18 +15,13 @@ import { SignaturePad } from "./SignaturePad";
 
 export type WelcomeProps = {
   sponsorName: string;
-  rewardName: string;
-  rewardPrice: number;
-  rewardImage: string;
-  currency: string;
   totalDays: number;
   promiseText: string;
-  perPoint: number;
-  habits: Pick<Habit, "id" | "name" | "emoji" | "icon" | "points" | "cadence">[];
+  habits: Pick<Habit, "id" | "name" | "emoji" | "icon">[];
   vapidKey: string;
 };
 
-const STEPS = ["hello", "name", "birthday", "deal", "habits", "promise", "notify", "go"] as const;
+const STEPS = ["hello", "name", "birthday", "habits", "promise", "notify", "go"] as const;
 type Step = (typeof STEPS)[number];
 
 export function Welcome(props: WelcomeProps) {
@@ -123,7 +116,7 @@ export function Welcome(props: WelcomeProps) {
               title="When's your birthday?"
               body="Only so I know which day to stop nagging you and throw confetti instead."
               cta={birthday ? "Noted" : "Skip this"}
-              onNext={() => go("deal")}
+              onNext={() => go("habits")}
             >
               <input
                 type="date"
@@ -134,60 +127,15 @@ export function Welcome(props: WelcomeProps) {
             </Panel>
           )}
 
-          {step === "deal" && (
-            <div className="flex flex-1 flex-col">
-              <Eyebrow>What you&apos;re playing for</Eyebrow>
-
-              {/* The photo leads. Showing it at 4% during onboarding shows her
-                  nothing, and the tile reveal is noise before she knows what
-                  she is looking at — so the prize sits here plainly. She meets
-                  the uncover mechanic on /today, where it means something. */}
-              <div className="mt-3 grid place-items-center">
-                {props.rewardImage ? (
-                  <RewardImage
-                    src={props.rewardImage}
-                    alt={props.rewardName}
-                    rewardPct={100}
-                    size={250}
-                    plain
-                  />
-                ) : (
-                  <Character role="reward" mood="proud" size={150} />
-                )}
-              </div>
-
-              <h1 className="mt-3 text-center text-[26px] leading-tight font-black text-text">
-                {props.rewardName}
-              </h1>
-              <p className="mt-1 text-center text-[15px] font-black text-gold tabular-nums">
-                {money(props.rewardPrice, props.currency)}
-              </p>
-
-              <div className="mt-5 space-y-2.5">
-                <Fact
-                  k={`${props.totalDays} days`}
-                  v="from the day you start. That's the whole deal."
-                />
-                <Fact
-                  k={money(props.perPoint * 100, props.currency)}
-                  v="is what a full day is worth. Every habit you tick uncovers a piece of that picture."
-                />
-                <Fact
-                  k="Mostly, not perfectly"
-                  v="— miss a day and you slow down. You don't lose."
-                />
-              </div>
-
-              <Next onClick={() => go("habits")}>Show me the habits</Next>
-            </div>
-          )}
-
           {step === "habits" && (
             <div className="flex flex-1 flex-col">
               <Eyebrow>Every day</Eyebrow>
-              <h1 className="mt-1 mb-4 text-3xl leading-tight font-black text-text">
+              <h1 className="mt-1 mb-1 text-3xl leading-tight font-black text-text">
                 These are yours.
               </h1>
+              <p className="mb-4 text-[13.5px] font-bold text-muted">
+                One tick each, every day. That&apos;s the whole game.
+              </p>
 
               <ul className="flex-1 space-y-2 overflow-y-auto">
                 {props.habits.map((h, i) => (
@@ -204,17 +152,13 @@ export function Welcome(props: WelcomeProps) {
                     <span className="min-w-0 flex-1 truncate text-[13.5px] font-black text-text">
                       {h.name}
                     </span>
-                    <span className="shrink-0 text-[12.5px] font-black text-gold tabular-nums">
-                      {money(h.points * props.perPoint, props.currency)}
-                      {h.cadence === "weekly" ? " ea" : ""}
-                    </span>
                   </motion.li>
                 ))}
               </ul>
 
               <p className="mt-3 text-[12.5px] leading-snug font-semibold text-faint">
                 Want one changed or dropped? Ask {props.sponsorName || "whoever set this up"} —
-                they hold the rules so the finish line can&apos;t move.
+                they hold the list.
               </p>
               <Next onClick={() => go("promise")}>I&apos;m in</Next>
             </div>
@@ -312,14 +256,6 @@ export function Welcome(props: WelcomeProps) {
 }
 
 /* ------------------------------------------------------------------ pieces */
-
-function Fact({ k, v }: { k: string; v: string }) {
-  return (
-    <p className="text-[14px] leading-relaxed font-bold text-muted">
-      <span className="text-text">{k}</span> {v}
-    </p>
-  );
-}
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (

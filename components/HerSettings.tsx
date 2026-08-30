@@ -3,7 +3,6 @@
 import { useEffect, useState, useTransition } from "react";
 import { updateReminders } from "@/app/actions";
 import { isMuted, setMuted, sfx } from "@/lib/sfx";
-import { isSpeechOn, primeVoices, setSpeechOn, speak, speechError, speechSupported } from "@/lib/speech";
 import type { Config } from "@/lib/types";
 import type { Theme } from "@/lib/theme";
 import { CharacterPicker } from "./CharacterPicker";
@@ -17,16 +16,10 @@ export function HerSettings({ config, theme }: { config: Config; theme: Theme })
   const [pending, start] = useTransition();
 
   const [mute, setMute] = useState(false);
-  const [voice, setVoice] = useState(false);
-  const [canSpeak, setCanSpeak] = useState(true);
-  const [voiceNote, setVoiceNote] = useState<string | null>(null);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setMute(isMuted());
-    setVoice(isSpeechOn());
-    setCanSpeak(speechSupported());
-    primeVoices();
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -38,7 +31,7 @@ export function HerSettings({ config, theme }: { config: Config; theme: Theme })
   return (
     <div className="space-y-4">
       <section className="card space-y-3 p-4">
-        <h2 className="text-[11px] font-black tracking-[0.16em] text-faint uppercase">Reminders</h2>
+        <h2 className="text-[12px] font-bold text-faint">Reminders</h2>
         <Toggle label="Send me daily reminders" on={on} onChange={setOn} />
         <div className="grid grid-cols-2 gap-3">
           <label>
@@ -67,16 +60,16 @@ export function HerSettings({ config, theme }: { config: Config; theme: Theme })
       </section>
 
       <section className="card space-y-3 p-4">
-        <h2 className="text-[11px] font-black tracking-[0.16em] text-faint uppercase">Look</h2>
+        <h2 className="text-[12px] font-bold text-faint">Look</h2>
         <ThemeToggle current={theme} />
       </section>
 
       <CharacterPicker />
 
       <section className="card space-y-3 p-4">
-        <h2 className="text-[11px] font-black tracking-[0.16em] text-faint uppercase">Sound</h2>
+        <h2 className="text-[12px] font-bold text-faint">Sound</h2>
         <Toggle
-          label="Celebration sounds"
+          label="Little sounds when you tick"
           on={!mute}
           onChange={(v) => {
             setMute(!v);
@@ -84,36 +77,6 @@ export function HerSettings({ config, theme }: { config: Config; theme: Theme })
             if (v) sfx.done();
           }}
         />
-        <Toggle
-          label="Nimbus talks out loud"
-          on={voice}
-          onChange={(v) => {
-            setVoice(v);
-            setSpeechOn(v);
-            if (v) speak("Nice one. This is how I will sound.", { force: true });
-          }}
-        />
-        <p className="-mt-1 text-[11.5px] leading-snug font-semibold text-muted">
-          Reads the speech bubble aloud each time you finish a habit. Uses your device&apos;s own
-          voice — nothing to download.
-        </p>
-        {!canSpeak && (
-          <p className="text-[11.5px] font-bold text-flame">
-            This browser has no speech engine. Safari and Chrome both do.
-          </p>
-        )}
-        <button
-          onClick={() => {
-            const started = speak("Four habits left. You are closer than you think.", { force: true });
-            setVoiceNote(started ? null : (speechError() ?? "Your browser blocked it."));
-            // Errors surface asynchronously, so check again once it should be talking.
-            setTimeout(() => setVoiceNote(speechError()), 1200);
-          }}
-          className="press w-full rounded-xl border-line bg-surface-2 py-2.5 text-[12px] font-black tracking-wide text-text uppercase"
-        >
-          Hear it
-        </button>
-        {voiceNote && <p className="text-[11.5px] font-bold text-flame">{voiceNote}</p>}
       </section>
     </div>
   );

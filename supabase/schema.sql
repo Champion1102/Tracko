@@ -1,6 +1,7 @@
 -- ---------------------------------------------------------------------------
 -- Tracko schema. Paste this whole file into the Supabase SQL editor and Run.
--- Safe to re-run.
+-- Safe to re-run. Existing databases from before Aug 2026 should also run
+-- 2026-08-31-simplify.sql once.
 -- ---------------------------------------------------------------------------
 
 create table if not exists config (
@@ -15,24 +16,21 @@ create table if not exists habits (
   blurb      text not null default '',
   emoji      text not null default '✅',
   icon       text,
-  kind       text not null check (kind in ('binary','counter','duration','checklist','sleep')),
-  cadence    text not null check (cadence in ('daily','weekly')),
-  points     numeric not null,
+  kind       text not null check (kind in ('binary','counter','checklist')),
+  -- Legacy columns from the points era. The app writes constants into them.
+  cadence    text not null default 'daily',
+  points     numeric not null default 0,
   target     numeric not null default 1,
   unit       text not null default '',
   sub_items  jsonb,
+  proof      text check (proof is null or proof in ('photo','link','hours')),
   sort_order int not null default 0,
   active     boolean not null default true
 );
 
 -- Added later; safe to run on an existing database.
 alter table habits add column if not exists icon text;
--- 'sleep' is a valid habit kind (lib/types.ts) but early schemas left it out of
--- the check, so the seed's sleep habit — and thus the whole atomic seed batch —
--- was silently rejected. Rebuild the constraint to include it.
-alter table habits drop constraint if exists habits_kind_check;
-alter table habits add constraint habits_kind_check
-  check (kind in ('binary','counter','duration','checklist','sleep'));
+alter table habits add column if not exists proof text;
 
 create table if not exists entries (
   habit_id   text not null references habits(id) on delete cascade,
@@ -85,9 +83,11 @@ create table if not exists photos (
   id         text primary key,
   day        date not null,
   path       text not null,
+  habit_id   text,
   created_at timestamptz not null default now()
 );
 create index if not exists photos_day_idx on photos(day);
+alter table photos add column if not exists habit_id text;
 
 create table if not exists chat (
   id         text primary key,
@@ -109,6 +109,15 @@ create table if not exists expenses (
   created_at  timestamptz not null default now()
 );
 create index if not exists expenses_day_idx on expenses(day);
+
+-- Her journal. One entry per day, hers only.
+create table if not exists journal (
+  day        date primary key,
+  body       text not null default '',
+  mood       int check (mood between 1 and 5),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
 
 create table if not exists push_subs (
   endpoint   text primary key,
@@ -132,9 +141,10 @@ alter table coach        enable row level security;
 alter table photos       enable row level security;
 alter table chat         enable row level security;
 alter table expenses     enable row level security;
+alter table journal      enable row level security;
 
--- Private bucket for her daily photo proof. Served through short-lived signed
--- URLs from the server, never public.
+-- Private bucket for her photos. Served through short-lived signed URLs from
+-- the server, never public.
 insert into storage.buckets (id, name, public)
 values ('proof', 'proof', false)
 on conflict (id) do nothing;

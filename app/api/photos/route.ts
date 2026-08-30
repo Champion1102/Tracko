@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 const MAX_BYTES = 6 * 1024 * 1024;
+const MAX_PER_DAY = 12;
 const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 
 /** Today's photos by default; `?all=1` for the whole gallery. */
@@ -24,14 +25,15 @@ export async function GET(req: Request) {
 
   // Signed URLs expire, so they're minted per request rather than stored.
   const withUrls = await Promise.all(
-    wanted.map(async (p) => ({ id: p.id, day: p.day, url: await store.photoUrl(p) })),
+    wanted.map(async (p) => ({
+      id: p.id,
+      day: p.day,
+      habitId: p.habitId ?? null,
+      url: await store.photoUrl(p),
+    })),
   );
 
-  return NextResponse.json({
-    photos: withUrls.filter((p) => p.url),
-    max: config.photoMaxPerDay,
-    bonusPoints: config.photoBonusPoints,
-  });
+  return NextResponse.json({ photos: withUrls.filter((p) => p.url) });
 }
 
 export async function POST(req: Request) {
@@ -51,7 +53,7 @@ export async function POST(req: Request) {
   }
 
   const store = db();
-  const { photos, config } = await store.read();
+  const { photos, habits, config } = await store.read();
   const today = todayInTz(config.timezone);
 
   const day = String(form.get("day") ?? today);
@@ -61,11 +63,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "You can only add photos for today or yesterday" }, { status: 400 });
   }
 
-  if (photos.filter((p) => p.day === day).length >= config.photoMaxPerDay) {
-    return NextResponse.json(
-      { error: `That's the ${config.photoMaxPerDay} for the day.` },
-      { status: 409 },
-    );
+  const habitId = String(form.get("habitId") ?? "") || undefined;
+  if (habitId && !habits.some((h) => h.id === habitId)) {
+    return NextResponse.json({ error: "Unknown habit" }, { status: 400 });
+  }
+
+  if (photos.filter((p) => p.day === day).length >= MAX_PER_DAY) {
+    return NextResponse.json({ error: `That's ${MAX_PER_DAY} for one day.` }, { status: 409 });
   }
 
   const id = `ph_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
@@ -74,6 +78,7 @@ export async function POST(req: Request) {
     id,
     day,
     path: `${day}/${id}.${ext}`,
+    habitId,
     createdAt: new Date().toISOString(),
   };
 
@@ -89,7 +94,7 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     ok: true,
-    photo: { id, day, url: await store.photoUrl(photo) },
+    photo: { id, day, habitId: habitId ?? null, url: await store.photoUrl(photo) },
   });
 }
 

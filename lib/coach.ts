@@ -4,46 +4,25 @@ import type { AppState } from "./state";
 import type { CoachLine, CoachPack, Situation } from "./types";
 
 /**
- * Lines are generated ONCE PER DAY by the cron job, not on every tap.
- * Tapping a habit has to feel instant and has to work with no signal — an API
- * call in that path would break both. The pack is cached in the database and
- * the UI picks from it locally; `lib/mascot.ts` is the fallback whenever the
- * pack is missing, stale, or every provider is down.
+ * Lines are generated ONCE PER DAY by the cron job and read by the two push
+ * reminders. The pack is cached in the database; the cron falls back to a
+ * hand-written line whenever the pack is missing, stale, or every provider
+ * is down.
  *
  * Providers are tried in order and the first one that returns valid lines wins.
  * Groq, Cerebras and OpenRouter all speak the OpenAI chat-completions dialect,
  * so they share one adapter.
  */
 
-const SITUATIONS: Situation[] = [
-  "morning",
-  "evening",
-  "habit_done",
-  "almost",
-  "perfect_day",
-  "streak",
-  "behind",
-  "comeback",
-  "reward",
-];
+const SITUATIONS: Situation[] = ["morning", "evening"];
 
 const LineSchema = z.object({
-  situation: z.enum([
-    "morning",
-    "evening",
-    "habit_done",
-    "almost",
-    "perfect_day",
-    "streak",
-    "behind",
-    "comeback",
-    "reward",
-  ]),
+  situation: z.enum(["morning", "evening"]),
   text: z.string().min(1).max(160),
   mood: z.enum(["happy", "hype", "proud", "worried", "sleepy", "cheeky"]),
 });
 
-const PackSchema = z.object({ lines: z.array(LineSchema).min(9) });
+const PackSchema = z.object({ lines: z.array(LineSchema).min(2) });
 
 // ---------------------------------------------------------------- providers
 
@@ -252,33 +231,32 @@ export function buildCoachContext(s: AppState) {
     .slice(0, 4)
     .map((p) => p.habit.name);
 
+  const ranked = [...s.stats].sort((a, b) => b.pct - a.pct);
+
   // Deliberately minimal — her first name is useful for the lines; nothing
   // else identifying needs to leave the server.
   return {
     name: s.config.heroName || null,
-    reward: s.config.rewardName,
     dayNumber: s.totals.daysElapsed,
     totalDays: s.config.totalDays,
     daysLeft: s.totals.daysLeft,
     currentStreak: s.totals.currentStreak,
     longestStreak: s.totals.longestStreak,
+    daysDone: s.totals.daysDone,
     perfectDays: s.totals.perfectDays,
     missedDays: s.totals.missedDays,
-    rewardPercent: Math.round(s.totals.rewardPct),
-    pointsToGo: Math.round(s.totals.pointsToGo),
-    pointsNeededPerDay: Math.ceil(s.totals.requiredPace),
-    averagePerDay: Math.round(s.totals.actualPace),
-    onTrack: s.totals.onTrack,
     habitsOutstandingToday: outstanding,
+    steadiestHabit: ranked[0]?.habit.name ?? null,
+    shakiestHabit: ranked[ranked.length - 1]?.habit.name ?? null,
   };
 }
 
-const SYSTEM = `You write one-line messages for a habit-tracking app's mascot, a small cloud character called Nimbus.
+const SYSTEM = `You write one-line push notifications for a habit-tracking app's mascot, a small cloud character called Nimbus.
 
-The user is doing a 90-day challenge. A friend has promised her a real gift if she finishes. Every line you write appears in a speech bubble AND is read aloud by a text-to-speech voice.
+The user is doing a 100-day challenge: ten small daily habits, one tick each. Nobody is paying her and there is no prize — she is doing it for herself.
 
 Hard rules:
-- Maximum 14 words. Shorter is better. These are read aloud, so they must sound like a person speaking.
+- Maximum 14 words. Shorter is better. They must sound like a person speaking.
 - NO exclamation marks. No "you've got this", "keep it up", "great job", "let's go".
 - NO poetry. No dew, no tea, no metaphors about clouds or dawn or journeys. Plain spoken English.
 - Reference the real numbers you're given when it makes a line land harder. Don't stuff every line with statistics.
@@ -286,21 +264,14 @@ Hard rules:
 - Vary the rhythm. Some lines nudge, some joke, some just observe.
 - Use her name at most one line in four. If no name is given, never invent one.
 
-Good: "Two hours of deep work is worth more than the badminton, honestly."
-Good: "You're eleven thousand rupees in. That's a real chunk of it."
+Good: "Water and skincare are the easy two. Start there."
+Good: "Twelve days in a row. Would be a shame."
 Bad: "Good morning! The day is fresh and your habits await!"
 Bad: "The night's quiet, yet some checkboxes are still humming."
 
-Write exactly 3 lines for each of these 9 situations:
-- morning: opening the app early in the day
-- evening: habits still outstanding late on
-- habit_done: she just ticked any single habit
-- almost: only one or two habits left today
-- perfect_day: all habits done today
-- streak: celebrating the current streak length
-- behind: she is off the pace needed for the reward
-- comeback: she missed yesterday and is back today
-- reward: progress toward the gift itself
+Write exactly 3 lines for each of these 2 situations:
+- morning: the morning reminder, before anything is ticked
+- evening: the evening reminder, with some habits still open
 
 Choose the mood that matches each line, from: happy, hype, proud, worried, sleepy, cheeky.
 
@@ -320,7 +291,7 @@ export async function generateCoachPack(
   const chain = providers();
   if (!chain.length) return { ok: false, errors: ["No provider API key is set"] };
 
-  const user = `Here is where she stands today. Write the 27 lines.\n\n${JSON.stringify(ctx, null, 2)}`;
+  const user = `Here is where she stands today. Write the 6 lines.\n\n${JSON.stringify(ctx, null, 2)}`;
   const errors: string[] = [];
 
   for (const p of chain) {
@@ -353,58 +324,6 @@ export async function generateCoachPack(
   }
 
   return { ok: false, errors };
-}
-
-// ---------------------------------------------------------------- live line
-
-const LIVE_SYSTEM = `You are Nimbus, a small cloud mascot in a habit-tracking app. She just finished a habit. Write ONE short line reacting to it.
-
-Hard rules:
-- Maximum 14 words. It is read aloud, so it must sound like a person speaking.
-- NO exclamation marks. No "great job", "well done", "keep it up", "you've got this".
-- Say something only true of THIS moment: the specific habit she just did, the actual time, what is specifically still left, the streak, the money. A line that would work for any habit on any day is a failed line.
-- No emoji, no markdown, no quotation marks around the line.
-- Dry, warm, a bit funny. A friend on the sofa, not a coach with a whistle.
-- Her name at most one time in four. Usually leave it out.
-- If nothing is left, react to the day being finished. If one is left, name it.
-
-Good: "Deep work at 11pm. Water and sleep and you're clear."
-Good: "That's 118 rupees for two hours of your own brain."
-Bad: "Great job on deep work! Keep hydrating!"
-
-Reply with a single JSON object and nothing else:
-{"text":"...","mood":"happy|hype|proud|worried|sleepy|cheeky"}`;
-
-const LiveSchema = z.object({
-  text: z.string().min(1).max(160),
-  mood: z.enum(["happy", "hype", "proud", "worried", "sleepy", "cheeky"]),
-});
-
-export type LiveLine = { text: string; mood: CoachLine["mood"] };
-
-/**
- * Called the moment a habit is completed. The UI shows a local line instantly
- * and swaps this in when it lands, so a slow provider is never felt.
- */
-export async function generateLiveLine(ctx: Record<string, unknown>): Promise<LiveLine | null> {
-  const chain = providers();
-  if (!chain.length) return null;
-
-  for (const p of chain) {
-    try {
-      const raw = await callProvider(
-        p,
-        LIVE_SYSTEM,
-        JSON.stringify(ctx),
-        { maxTokens: 900, temperature: 1, timeoutMs: 8000 },
-      );
-      const parsed = LiveSchema.safeParse(parseLoose(raw));
-      if (parsed.success) return parsed.data;
-    } catch (err) {
-      console.error(`[coach:live] ${p.label} failed:`, err instanceof Error ? err.message : err);
-    }
-  }
-  return null;
 }
 
 /** Deterministic pick so the same situation doesn't reshuffle on every render. */

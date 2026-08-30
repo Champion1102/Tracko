@@ -6,17 +6,12 @@ import confetti from "canvas-confetti";
 import { markSeen } from "@/app/actions";
 import { sfx } from "@/lib/sfx";
 import type { Celebration as C } from "@/lib/types";
-import { DysonBuild } from "./DysonBuild";
-import { RewardImage } from "./RewardImage";
 import { Character } from "./character";
 
-const THEME: Record<C["kind"], { colors: string[]; accent: string; ring: string }> = {
-  perfect_day: { colors: ["#58CC02", "#A8F26B", "#FFFFFF"], accent: "text-grass", ring: "shadow-[0_0_90px_-10px_#58CC02]" },
-  streak: { colors: ["#FF7A1A", "#FFC24B", "#FFFFFF"], accent: "text-flame", ring: "shadow-[0_0_90px_-10px_#FF7A1A]" },
-  reward_milestone: { colors: ["#FFC24B", "#FFE39A", "#FFFFFF"], accent: "text-gold", ring: "shadow-[0_0_90px_-10px_#FFC24B]" },
-  week_bonus: { colors: ["#A97BFF", "#D9C2FF", "#FFFFFF"], accent: "text-violet", ring: "shadow-[0_0_90px_-10px_#A97BFF]" },
-  habit_streak: { colors: ["#3BC9F0", "#B4EEFF", "#FFFFFF"], accent: "text-aqua", ring: "shadow-[0_0_90px_-10px_#3BC9F0]" },
-  letter: { colors: ["#FF5F8F", "#FFC9D6", "#FFFFFF"], accent: "text-rose", ring: "shadow-[0_0_90px_-10px_#FF5F8F]" },
+const THEME: Record<C["kind"], { colors: string[]; accent: string }> = {
+  perfect_day: { colors: ["#2E9E56", "#7FDCA1", "#FFFFFF"], accent: "text-grass" },
+  streak: { colors: ["#FF7A1A", "#FFC24B", "#FFFFFF"], accent: "text-flame" },
+  letter: { colors: ["#FF5F8F", "#FFC9D6", "#FFFFFF"], accent: "text-rose" },
 };
 
 function burst(colors: string[], big: boolean) {
@@ -28,17 +23,7 @@ function burst(colors: string[], big: boolean) {
   }
 }
 
-export function CelebrationStack({
-  items,
-  rewardPct,
-  rewardImage,
-  rewardName,
-}: {
-  items: C[];
-  rewardPct: number;
-  rewardImage: string;
-  rewardName: string;
-}) {
+export function CelebrationStack({ items }: { items: C[] }) {
   const [queue, setQueue] = useState<C[]>(items);
   const [seenBatch, setSeenBatch] = useState(items);
   const [, start] = useTransition();
@@ -53,10 +38,9 @@ export function CelebrationStack({
   useEffect(() => {
     if (!current) return;
     const theme = THEME[current.kind];
-    const big = current.kind === "reward_milestone" || current.kind === "perfect_day";
+    const big = current.kind === "perfect_day";
     burst(theme.colors, big);
-    if (current.kind === "reward_milestone") sfx.fanfare();
-    else if (current.kind === "perfect_day") sfx.perfect();
+    if (big) sfx.perfect();
     else sfx.done();
   }, [current]);
 
@@ -86,19 +70,9 @@ export function CelebrationStack({
             animate={{ scale: 1, y: 0 }}
             transition={{ type: "spring", stiffness: 210, damping: 18 }}
           >
-            <div className={`mx-auto mb-6 grid place-items-center ${THEME[current.kind].ring}`}>
-              {current.kind === "reward_milestone" ? (
-                rewardImage ? (
-                  <RewardImage src={rewardImage} alt={rewardName} rewardPct={rewardPct} size={220} />
-                ) : (
-                  <DysonBuild rewardPct={rewardPct} size={190} />
-                )
-              ) : current.kind === "streak" ? (
+            <div className="mx-auto mb-6 grid place-items-center">
+              {current.kind === "streak" ? (
                 <div className="animate-flicker text-[92px] leading-none">🔥</div>
-              ) : current.kind === "habit_streak" ? (
-                <div className="animate-pop text-[86px] leading-none">
-                  {String(current.title).split(" ")[0]}
-                </div>
               ) : (
                 <Character role="celebration" mood="proud" size={150} event="celebrate" />
               )}
@@ -112,9 +86,9 @@ export function CelebrationStack({
 
             <button
               onClick={next}
-              className="press w-full rounded-2xl border-grass-deep bg-grass py-4 text-[15px] font-black tracking-wide text-ink uppercase"
+              className="press w-full rounded-2xl border-grass-deep bg-grass py-4 text-[15px] font-black tracking-wide text-white uppercase"
             >
-              {queue.length > 1 ? `Next (${queue.length - 1} more)` : "Let's go"}
+              {queue.length > 1 ? `Next (${queue.length - 1} more)` : "Nice"}
             </button>
           </motion.div>
         </motion.div>

@@ -11,12 +11,14 @@ import type {
   Entry,
   Expense,
   Habit,
+  JournalEntry,
   Letter,
   Nudge,
   Photo,
   PushSub,
   Role,
 } from "../types";
+import { normalizeHabit } from "./normalize";
 import type { ExpensePatch, Store } from "./store";
 
 const FILE = path.join(process.cwd(), ".data", "tracko.json");
@@ -35,6 +37,7 @@ function freshDb(): DB {
     photos: [],
     chat: [],
     expenses: [],
+    journal: [],
   };
 }
 
@@ -72,7 +75,15 @@ export class FileStore implements Store {
     const base = freshDb();
     // Field-level merge on config so data written before a new setting
     // existed still gets that setting's default.
-    return { ...base, ...parsed, config: { ...base.config, ...parsed.config } };
+    return {
+      ...base,
+      ...parsed,
+      config: { ...base.config, ...parsed.config },
+      habits: (parsed.habits ?? base.habits).map((h) =>
+        normalizeHabit(h as unknown as Record<string, unknown>),
+      ),
+      journal: parsed.journal ?? [],
+    };
   }
 
   private async write(db: DB) {
@@ -238,6 +249,20 @@ export class FileStore implements Store {
   deleteExpense(id: string) {
     return this.mutate<void>((db) => {
       db.expenses = db.expenses.filter((e) => e.id !== id);
+    });
+  }
+
+  upsertJournal(entry: JournalEntry) {
+    return this.mutate<void>((db) => {
+      const i = db.journal.findIndex((j) => j.day === entry.day);
+      if (i >= 0) db.journal[i] = entry;
+      else db.journal.push(entry);
+    });
+  }
+
+  deleteJournal(day: string) {
+    return this.mutate<void>((db) => {
+      db.journal = db.journal.filter((j) => j.day !== day);
     });
   }
 

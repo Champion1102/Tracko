@@ -8,7 +8,7 @@ import { sfx } from "@/lib/sfx";
 
 const COLORS = ["#F3CB84", "#F2809E", "#AE8DE4", "#63D471", "#FFFFFF"];
 
-export function BirthdayBanner({ name, rewardName }: { name: string; rewardName: string }) {
+export function BirthdayBanner({ name }: { name: string }) {
   const fired = useRef(false);
 
   useEffect(() => {
@@ -76,8 +76,8 @@ export function BirthdayBanner({ name, rewardName }: { name: string; rewardName:
           {name ? `It's your day, ${name}` : "It's your day"}
         </h2>
         <p className="mx-auto mt-2 max-w-[30ch] text-[13px] leading-relaxed font-bold text-muted">
-          Every habit today is worth double the smile. The {rewardName} can wait an hour — go eat
-          something with sugar in it. Doctor&apos;s orders. Well, cloud&apos;s orders.
+          The ticks can wait an hour — go eat something with sugar in it. Doctor&apos;s
+          orders. Well, cloud&apos;s orders.
         </p>
       </div>
     </motion.section>

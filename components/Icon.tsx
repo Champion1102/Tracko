@@ -1,18 +1,23 @@
-type Props = { size?: number; className?: string };
+type Props = { size?: number; className?: string; strokeWidth?: number };
 
 /**
  * Inline icons for app chrome. Emoji stay for habits — those are meaningful
  * and user-editable — but mixing emoji with unicode glyphs in the nav looked
  * like three different apps stitched together.
  */
-const S = ({ size = 20, className = "", children }: Props & { children: React.ReactNode }) => (
+const S = ({
+  size = 20,
+  className = "",
+  strokeWidth = 2.2,
+  children,
+}: Props & { children: React.ReactNode }) => (
   <svg
     width={size}
     height={size}
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    strokeWidth={2.2}
+    strokeWidth={strokeWidth}
     strokeLinecap="round"
     strokeLinejoin="round"
     className={className}
@@ -42,24 +47,16 @@ export const Icon = {
       <path d="M8.5 12.2l2.4 2.4 4.6-5" />
     </S>
   ),
-  journey: (p: Props) => (
-    <S {...p}>
-      <path d="M4 20c3-1 3-5 6-5s3 4 6 4 3-3 4-4" />
-      <circle cx="5" cy="16" r="1.4" fill="currentColor" />
-      <circle cx="12" cy="12" r="1.4" fill="currentColor" />
-      <path d="M18 4l1.4 3 3 1.4-3 1.4L18 13l-1.4-3.2-3-1.4 3-1.4z" />
-    </S>
-  ),
-  trophy: (p: Props) => (
-    <S {...p}>
-      <path d="M7 4h10v5a5 5 0 0 1-10 0z" />
-      <path d="M17 5h2.5a2.5 2.5 0 0 1-2.5 4M7 5H4.5A2.5 2.5 0 0 0 7 9" />
-      <path d="M12 14v3M9 20h6" />
-    </S>
-  ),
   chart: (p: Props) => (
     <S {...p}>
       <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+    </S>
+  ),
+  book: (p: Props) => (
+    <S {...p}>
+      <path d="M5 4.5h11.5a2 2 0 0 1 2 2v13H7a2 2 0 0 1-2-2z" />
+      <path d="M5 17.5a2 2 0 0 1 2-2h11.5" />
+      <path d="M9 9h5.5" />
     </S>
   ),
   person: (p: Props) => (
@@ -91,14 +88,9 @@ export const Icon = {
       <path d="M8.6 11.8h.01M12 11.8h.01M15.4 11.8h.01" />
     </S>
   ),
-  rupee: (p: Props) => (
-    <S {...p}>
-      <path d="M7 4h10M7 9h10M15.5 4c0 4-3 5-6 5l7 11" />
-    </S>
-  ),
   wallet: (p: Props) => (
     // Two strokes only — anything more turns to mush at the 16px it renders at
-    // in the top bar.
+    // in the drawer.
     <S {...p}>
       <rect x="2.5" y="6" width="19" height="12" rx="2.6" />
       <path d="M2.5 10.2h19" />
@@ -109,6 +101,55 @@ export const Icon = {
       <rect x="3" y="5" width="18" height="14" rx="3" />
       <circle cx="8.6" cy="10" r="1.6" />
       <path d="M3.6 16.5l4.2-3.8a2 2 0 0 1 2.7 0l3.1 2.9M13.2 15.1l2.2-2a2 2 0 0 1 2.7 0l2.3 2.1" />
+    </S>
+  ),
+  camera: (p: Props) => (
+    <S {...p}>
+      <path d="M4 8.5a2 2 0 0 1 2-2h2.2l1.3-2h5l1.3 2H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+      <circle cx="12" cy="13" r="3.2" />
+    </S>
+  ),
+  link: (p: Props) => (
+    <S {...p}>
+      <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.2 1.2" />
+      <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.2-1.2" />
+    </S>
+  ),
+  external: (p: Props) => (
+    <S {...p}>
+      <path d="M14 4h6v6M20 4l-9 9" />
+      <path d="M19 13.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5.5" />
+    </S>
+  ),
+  clock: (p: Props) => (
+    <S {...p}>
+      <circle cx="12" cy="12" r="8.6" />
+      <path d="M12 7.4V12l3 2" />
+    </S>
+  ),
+  check: (p: Props) => (
+    <S {...p}>
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </S>
+  ),
+  plus: (p: Props) => (
+    <S {...p}>
+      <path d="M12 5v14M5 12h14" />
+    </S>
+  ),
+  close: (p: Props) => (
+    <S {...p}>
+      <path d="M6 6l12 12M18 6L6 18" />
+    </S>
+  ),
+  chevronLeft: (p: Props) => (
+    <S {...p}>
+      <path d="M15 5l-7 7 7 7" />
+    </S>
+  ),
+  chevronRight: (p: Props) => (
+    <S {...p}>
+      <path d="M9 5l7 7-7 7" />
     </S>
   ),
 };

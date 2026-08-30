@@ -1,5 +1,8 @@
-export type HabitKind = "binary" | "counter" | "duration" | "checklist" | "sleep";
-export type Cadence = "daily" | "weekly";
+export type HabitKind = "binary" | "counter" | "checklist";
+
+/** Optional extra a habit row offers next to the tick. Never required to tick.
+ *  "hours" ticks with a number — sleep logs how long, not just whether. */
+export type Proof = "photo" | "link" | "hours";
 
 export type Habit = {
   id: string;
@@ -10,13 +13,11 @@ export type Habit = {
   /** Key into HABIT_ICONS. Falls back to `emoji` when unset. */
   icon?: string;
   kind: HabitKind;
-  cadence: Cadence;
-  /** Daily habits: points toward the /100 day. Weekly: points per unit, capped at target. */
-  points: number;
-  /** counter/duration target, or weekly units required */
+  /** counter: taps to complete · checklist: number of sub-items · binary: 1 */
   target: number;
   unit: string;
   subItems?: string[];
+  proof?: Proof;
   sortOrder: number;
   active: boolean;
 };
@@ -26,9 +27,7 @@ export type Entry = {
   day: string; // YYYY-MM-DD
   value: number;
   subDone: boolean[];
-  /** Sleep habits only: "HH:MM" clock times she actually hit. */
-  bedtime?: string;
-  wakeTime?: string;
+  /** Link-proof habits keep the pasted URL here. */
   note?: string;
   updatedAt: string;
 };
@@ -38,7 +37,20 @@ export type Photo = {
   day: string;
   /** Storage object key (Supabase) or filename under .data/uploads (local). */
   path: string;
+  /** The habit it was added from, when it was. */
+  habitId?: string;
   createdAt: string;
+};
+
+export type JournalMood = 1 | 2 | 3 | 4 | 5;
+
+/** One entry per day. Hers only — never shown to the sponsor, never sent to Nimbus. */
+export type JournalEntry = {
+  day: string;
+  body: string;
+  mood: JournalMood | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 /**
@@ -88,13 +100,7 @@ export type Nudge = {
 
 export type Celebration = {
   key: string;
-  kind:
-    | "perfect_day"
-    | "streak"
-    | "reward_milestone"
-    | "habit_streak"
-    | "week_bonus"
-    | "letter";
+  kind: "perfect_day" | "streak" | "letter";
   title: string;
   body: string;
   meta: Record<string, unknown>;
@@ -112,29 +118,11 @@ export type PushSub = {
 export type Config = {
   startDate: string; // YYYY-MM-DD
   totalDays: number;
-  rewardName: string;
-  rewardTargetPct: number;
-  /** What the reward actually costs. Drives the rupee counter. */
-  rewardPrice: number;
+  /** Symbol for her money tracker. */
   currency: string;
-  /** Public path to a real photo of the reward, e.g. "/reward.png". Falls back
-      to the drawn illustration when empty. */
-  rewardImage: string;
   timezone: string;
   heroName: string;
   sponsorName: string;
-  freezesTotal: number;
-  /** Optional daily photo proof: bonus points each, capped per day. */
-  photoBonusPoints: number;
-  photoMaxPerDay: number;
-  /** Bonus points for a week where every single day was perfect. */
-  perfectWeekBonus: number;
-
-  /** Sleep targets, used to score the sleep habit. */
-  idealBedtime: string;
-  idealWakeTime: string;
-  sleepTargetHours: number;
-  sleepToleranceMin: number;
 
   /** Her birthday, "YYYY-MM-DD" or "" — drives the birthday takeover. */
   heroBirthday: string;
@@ -156,14 +144,6 @@ export type Config = {
   heroPinHash: string | null;
   sponsorPinHash: string | null;
 
-  /**
-   * Optional deduction when a day closes badly. Off by default; see the note
-   * in scoring.ts on why this is a sharp tool.
-   */
-  penaltyEnabled: boolean;
-  penaltyPoints: number;
-  penaltyBelowPct: number;
-  freezeDays: string[]; // days consumed by a freeze
   reminderMorning: string; // "07:30"
   reminderEvening: string; // "20:30"
   remindersOn: boolean;
@@ -171,21 +151,15 @@ export type Config = {
   notifyLog: Record<string, string>;
 };
 
-export type Situation =
-  | "morning"
-  | "evening"
-  | "habit_done"
-  | "almost"
-  | "perfect_day"
-  | "streak"
-  | "behind"
-  | "comeback"
-  | "reward";
+export type Mood = "happy" | "hype" | "proud" | "worried" | "sleepy" | "cheeky";
+
+/** The two push reminders are the only readers of the daily coach pack now. */
+export type Situation = "morning" | "evening";
 
 export type CoachLine = {
   situation: Situation;
   text: string;
-  mood: "happy" | "hype" | "proud" | "worried" | "sleepy" | "cheeky";
+  mood: Mood;
 };
 
 /** One day's worth of generated lines, written once by the cron job. */
@@ -211,4 +185,5 @@ export type DB = {
   photos: Photo[];
   chat: ChatMessage[];
   expenses: Expense[];
+  journal: JournalEntry[];
 };

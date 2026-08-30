@@ -1,5 +1,5 @@
 import "server-only";
-import { habitRatio, indexEntries } from "./scoring";
+import { FREQUENCY_LABEL } from "./scoring";
 import type { AppState } from "./state";
 import type { ChatMessage } from "./types";
 
@@ -75,53 +75,55 @@ export function guardInput(text: string, sponsorName: string): Guard {
 export function buildChatSystem(s: AppState): string {
   const her = s.config.heroName || "she";
   const sponsor = s.config.sponsorName || "the friend who set this up";
-  const cur = s.config.currency;
 
   const outstanding = s.todayScore.perHabit.filter((p) => !p.done).map((p) => p.habit.name);
+  const ticked = s.todayScore.perHabit.filter((p) => p.done).map((p) => p.habit.name);
 
-  // Real per-habit hit rates, so "which am I worst at" gets an answer from
-  // the data rather than a guess at the list order.
-  const index = indexEntries(s.entries);
-  const elapsed = Math.max(s.totals.daysElapsed, 1);
-  const consistency = s.habits
-    .filter((h) => h.cadence === "daily")
-    .map((h) => {
-      const hit = s.days
-        .filter((d) => d.status !== "future")
-        .filter((d) => habitRatio(h, index.get(`${h.id}|${d.day}`), s.config) >= 1).length;
-      return { habit: h.name, hitRatePercent: Math.round((hit / elapsed) * 100), daysDone: hit };
-    })
-    .sort((a, b) => b.hitRatePercent - a.hitRatePercent);
+  // Real per-habit numbers, so "which am I worst at" and "how often do I
+  // actually go to the gym" get answers from the data rather than a guess.
+  const habits = [...s.stats]
+    .sort((a, b) => b.pct - a.pct)
+    .map((st) => ({
+      habit: st.habit.name,
+      daysDone: st.hit,
+      of: st.elapsed,
+      hitRatePercent: Math.round(st.pct),
+      timesPerWeek: Math.round(st.perWeek * 10) / 10,
+      pattern: FREQUENCY_LABEL[st.frequency],
+      currentRun: st.run,
+    }));
+
+  // Sleep logs hours into the entry value when she uses the selector.
+  const sleepHabit = s.habits.find((h) => h.proof === "hours");
+  const slept = sleepHabit
+    ? s.entries.filter((e) => e.habitId === sleepHabit.id && e.value > 1)
+    : [];
+  const averageSleptHours = slept.length
+    ? Math.round((slept.reduce((a, e) => a + e.value, 0) / slept.length) * 10) / 10
+    : null;
 
   const facts = {
     herName: s.config.heroName || null,
     sponsorName: s.config.sponsorName || null,
-    reward: s.config.rewardName,
-    rewardPrice: `${cur}${s.config.rewardPrice.toLocaleString("en-IN")}`,
-    earnedSoFar: `${cur}${Math.round(s.totals.earnedValue).toLocaleString("en-IN")}`,
-    percentToReward: Math.round(s.totals.rewardPct),
     dayNumber: s.totals.daysElapsed,
     totalDays: s.config.totalDays,
     daysLeft: s.totals.daysLeft,
-    currentStreak: s.totals.currentStreak,
-    longestStreak: s.totals.longestStreak,
+    daysDone: s.totals.daysDone,
     perfectDays: s.totals.perfectDays,
     missedDays: s.totals.missedDays,
-    onTrack: s.totals.onTrack,
-    averagePerDayValue: `${cur}${Math.round(s.totals.actualPace * s.totals.perPoint)}`,
-    neededPerDayValue: `${cur}${Math.round(s.totals.requiredPace * s.totals.perPoint)}`,
-    todayEarned: `${cur}${Math.round(s.totals.todayValue)}`,
+    currentStreak: s.totals.currentStreak,
+    longestStreak: s.totals.longestStreak,
+    tickedToday: ticked,
     stillOpenToday: outstanding,
-    habitHitRates: consistency,
-    bestHabit: consistency[0]?.habit ?? null,
-    worstHabit: consistency[consistency.length - 1]?.habit ?? null,
+    habits,
+    steadiestHabit: habits[0]?.habit ?? null,
+    shakiestHabit: habits[habits.length - 1]?.habit ?? null,
     photosThisChallenge: s.photos.length,
-    perfectWeeks: s.totals.perfectWeeks,
+    averageSleptHours,
     timeNow: s.clock,
-    daysSinceStart: s.totals.daysElapsed,
   };
 
-  return `You are Nimbus, a small cloud character who lives inside ${her}'s habit tracker. You are her companion for a ${s.config.totalDays}-day challenge. ${sponsor} promised her a ${s.config.rewardName} if she finishes, and she earns a bit of its value with every habit she ticks.
+  return `You are Nimbus, a small cloud character who lives inside ${her}'s habit tracker. You are her companion for a ${s.config.totalDays}-day challenge: ten small daily habits, one tick each. ${sponsor} set it up and can message her; nobody is paying her and there is no prize. A day counts as done at seven ticks of ten.
 
 WHAT YOU KNOW — this is her real data, as of right now:
 ${JSON.stringify(facts, null, 2)}

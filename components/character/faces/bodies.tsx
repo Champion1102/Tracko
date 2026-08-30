@@ -1,4 +1,4 @@
-import type { Mood } from "@/lib/mascot";
+import type { Mood } from "@/lib/types";
 import { Face } from "./Face";
 
 export type BodyProps = { mood: Mood; mouthOpen?: boolean; id: string };

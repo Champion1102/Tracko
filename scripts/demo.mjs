@@ -8,18 +8,19 @@ import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 const DAYS_IN = 24;
 const TOTAL_DAYS = 100;
 
-const DAILY = [
+// [id, kind, target, probability of a full tick]
+const HABITS = [
   ["h_sugar", "binary", 1, 0.78],
-  ["h_learning", "duration", 60, 0.68],
-  ["h_nutrition", "checklist", 3, 0.82],
-  ["h_water", "counter", 8, 0.85],
-  ["h_mindbody", "duration", 10, 0.8],
+  ["h_learning", "binary", 1, 0.68],
+  ["h_nutrition", "binary", 1, 0.82],
+  ["h_water", "binary", 1, 0.85],
+  ["h_mindbody", "binary", 1, 0.8],
   ["h_skincare", "checklist", 2, 0.9],
-  ["h_premeal", "counter", 2, 0.7],
+  ["h_premeal", "binary", 1, 0.7],
 ];
 
 // Deterministic PRNG so the demo looks the same every run.
-let s = 20260818;
+let s = 20260831;
 const rnd = () => ((s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296);
 
 const iso = (d) => d.toISOString().slice(0, 10);
@@ -28,8 +29,17 @@ const start = new Date(now);
 start.setUTCDate(start.getUTCDate() - (DAYS_IN - 1));
 
 const entries = [];
-const push = (habitId, day, value, subDone = []) =>
-  entries.push({ habitId, day, value, subDone, updatedAt: new Date().toISOString() });
+const push = (habitId, day, value, subDone = [], note) =>
+  entries.push({ habitId, day, value, subDone, note, updatedAt: new Date().toISOString() });
+
+const journal = [];
+const LINES = [
+  "Long day but I got the important ones done.",
+  "Skipped the gym, walked instead. Counting the walk in my heart only.",
+  "Posted the thing. Terrifying every time, easier every time.",
+  "Water is the easiest and I still forget it. How.",
+  "Quiet day. Ticked, slept, done.",
+];
 
 for (let i = 0; i < DAYS_IN; i++) {
   const d = new Date(start);
@@ -39,62 +49,42 @@ for (let i = 0; i < DAYS_IN; i++) {
   // One properly bad day and a couple of shaky ones, to exercise every state.
   const slump = i === 11 ? 0 : i === 12 || i === 19 ? 0.45 : 1;
 
-  for (const [id, kind, target, base] of DAILY) {
+  for (const [id, kind, target, base] of HABITS) {
     const p = base * slump;
-    if (rnd() > p) {
-      // partial credit some of the time rather than a flat zero
-      if (kind === "counter" && rnd() > 0.5) push(id, day, Math.max(1, Math.floor(target * 0.6)));
-      else if (kind === "duration" && rnd() > 0.6) push(id, day, Math.floor(target * 0.5));
-      continue;
-    }
+    if (rnd() > p) continue;
     if (kind === "binary") push(id, day, 1);
-    else if (kind === "checklist") push(id, day, target, new Array(target).fill(true));
-    else push(id, day, target + (rnd() > 0.75 ? Math.ceil(target * 0.25) : 0));
+    else push(id, day, target, new Array(target).fill(true));
   }
 
-  // Sleep is logged as clock times now.
-  if (rnd() < 0.8 * slump) {
-    const bedH = 22 + Math.floor(rnd() * 3); // 22:00–00:xx
-    const bedM = rnd() > 0.5 ? 30 : 0;
-    const wakeH = 6 + Math.floor(rnd() * 2);
-    const wakeM = rnd() > 0.5 ? 30 : 0;
-    const pad = (n) => String(n % 24).padStart(2, "0");
-    entries.push({
-      habitId: "h_sleep",
+  // Sleep ticks with hours most nights.
+  if (rnd() < 0.8 * slump) push("h_sleep", day, [6, 6.5, 7, 7.5, 8][Math.floor(rnd() * 5)]);
+
+  // Gym roughly every other day, posts twice a week with a link.
+  const dow = d.getUTCDay();
+  if (dow !== 0 && rnd() < 0.55 * slump) push("h_movement", day, 1);
+  if ((dow === 2 || dow === 5) && rnd() < 0.8 * slump) {
+    push("h_content", day, 1, [], "https://www.linkedin.com/posts/demo-post");
+  }
+
+  if (rnd() < 0.5 * slump) {
+    journal.push({
       day,
-      value: 1,
-      subDone: [],
-      bedtime: `${pad(bedH)}:${String(bedM).padStart(2, "0")}`,
-      wakeTime: `${pad(wakeH)}:${String(wakeM).padStart(2, "0")}`,
+      body: LINES[Math.floor(rnd() * LINES.length)],
+      mood: 2 + Math.floor(rnd() * 4),
+      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
   }
-
-  const dow = d.getUTCDay();
-  if (dow !== 0 && rnd() < 0.78 * slump) push("h_movement", day, 1);
-  if ((dow === 2 || dow === 5) && rnd() < 0.8) push("h_content", day, 1);
 }
 
 const db = {
   config: {
     startDate: iso(start),
     totalDays: TOTAL_DAYS,
-    rewardName: "Dyson Airwrap",
-    rewardPrice: 49900,
     currency: "₹",
-    rewardImage: "/reward.png",
-    rewardTargetPct: 85,
     timezone: "Asia/Kolkata",
     heroName: "Riya",
     sponsorName: "Ritesh",
-    freezesTotal: 3,
-    photoBonusPoints: 1,
-    photoMaxPerDay: 4,
-    perfectWeekBonus: 50,
-    idealBedtime: "23:00",
-    idealWakeTime: "07:00",
-    sleepTargetHours: 7.5,
-    sleepToleranceMin: 45,
     heroBirthday: "",
     promiseText:
       "I'm not doing this for anyone else.\n\nI'll tick only what I've actually done — no rounding up, no telling myself it's close enough.\n\nOn the days I don't feel like it, I'll do it small rather than not at all.\n\nIf I fall off, I'll come back the next morning instead of disappearing.\n\nWholeheartedly. All hundred days.",
@@ -103,16 +93,13 @@ const db = {
     // Left null on purpose so `npm run demo` always drops you into the welcome
     // flow. Complete it once and the rest of the app opens normally.
     onboardedAt: null,
-    penaltyEnabled: false,
-    penaltyPoints: 25,
-    penaltyBelowPct: 30,
-    freezeDays: [],
     reminderMorning: "07:30",
     reminderEvening: "20:30",
     remindersOn: true,
     notifyLog: {},
   },
   entries,
+  journal,
   nudges: [
     {
       id: "n_demo1",
@@ -126,6 +113,7 @@ const db = {
   pushSubs: [],
   photos: [],
   chat: [],
+  expenses: [],
 };
 
 mkdirSync(".data", { recursive: true });

@@ -47,40 +47,6 @@ export function allDays(startDate: string, totalDays: number): string[] {
   return Array.from({ length: totalDays }, (_, i) => addDays(startDate, i));
 }
 
-/** 0-based week bucket, anchored to startDate rather than the calendar. */
-export function weekIndex(startDate: string, day: string): number {
-  return Math.floor(diffDays(startDate, day) / 7);
-}
-
-export type Week = {
-  index: number;
-  label: string;
-  days: string[];
-  start: string;
-  end: string;
-};
-
-export function weeksOf(startDate: string, totalDays: number): Week[] {
-  const weeks: Week[] = [];
-  for (let i = 0; i * 7 < totalDays; i++) {
-    const days = allDays(startDate, totalDays).slice(i * 7, i * 7 + 7);
-    weeks.push({
-      index: i,
-      label: `Week ${i + 1}`,
-      days,
-      start: days[0],
-      end: days[days.length - 1],
-    });
-  }
-  return weeks;
-}
-
-export function weekOf(startDate: string, totalDays: number, day: string): Week {
-  const idx = weekIndex(startDate, day);
-  const weeks = weeksOf(startDate, totalDays);
-  return weeks[Math.min(Math.max(idx, 0), weeks.length - 1)];
-}
-
 export function prettyDay(day: string): string {
   const [y, m, d] = day.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-GB", {
@@ -91,35 +57,51 @@ export function prettyDay(day: string): string {
   });
 }
 
+/** "Sunday" for a YYYY-MM-DD. */
+export function weekdayName(day: string): string {
+  return new Date(toUTC(day)).toLocaleDateString("en-GB", { weekday: "long", timeZone: "UTC" });
+}
+
+/** "31 August" for a YYYY-MM-DD. */
+export function dayMonth(day: string): string {
+  return new Date(toUTC(day)).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  });
+}
+
+/** 0 = Monday … 6 = Sunday. */
+export function weekday(day: string): number {
+  return (new Date(toUTC(day)).getUTCDay() + 6) % 7;
+}
+
+/** "August 2026" for a YYYY-MM. */
+export function monthLabel(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+/** Every YYYY-MM-DD in a YYYY-MM. */
+export function daysOfMonth(month: string): string[] {
+  const [y, m] = month.split("-").map(Number);
+  const count = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return Array.from({ length: count }, (_, i) => `${month}-${String(i + 1).padStart(2, "0")}`);
+}
+
+/** YYYY-MM shifted by n months. */
+export function addMonths(month: string, n: number): string {
+  const [y, m] = month.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + n, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
 export function isFuture(day: string, today: string): boolean {
   return diffDays(today, day) > 0;
-}
-
-/** "HH:MM" → minutes past midnight. */
-export function clockToMinutes(clock: string): number | null {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(clock.trim());
-  if (!m) return null;
-  const h = Number(m[1]);
-  const min = Number(m[2]);
-  if (h > 23 || min > 59) return null;
-  return h * 60 + min;
-}
-
-/** Minutes slept between two clock times, wrapping past midnight. */
-export function sleepDuration(bedtime: string, wakeTime: string): number | null {
-  const bed = clockToMinutes(bedtime);
-  const wake = clockToMinutes(wakeTime);
-  if (bed === null || wake === null) return null;
-  return wake >= bed ? wake - bed : wake + 1440 - bed;
-}
-
-/** Shortest distance between two clock times, in minutes (max 720). */
-export function clockDistance(a: string, b: string): number | null {
-  const x = clockToMinutes(a);
-  const y = clockToMinutes(b);
-  if (x === null || y === null) return null;
-  const raw = Math.abs(x - y);
-  return Math.min(raw, 1440 - raw);
 }
 
 /** True when `day` (YYYY-MM-DD) falls on the same month and date as `birthday`. */

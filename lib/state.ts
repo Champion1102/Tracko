@@ -1,18 +1,17 @@
 import { cache } from "react";
 
 import { db } from "./db";
-import { pickLine } from "./coach";
-import { addDays, timeInTz, todayInTz, weekOf } from "./dates";
-import { partsUnlocked, nextPart } from "./dyson";
-import { mascotLine } from "./mascot";
+import { timeInTz, todayInTz } from "./dates";
 import {
   computeTotals,
   detectCelebrations,
+  habitStats,
   indexEntries,
   scoreDay,
-  scoreWeek,
 } from "./scoring";
-import type { DB, Situation } from "./types";
+import type { Celebration, DB } from "./types";
+
+const CELEBRATION_KINDS = new Set<Celebration["kind"]>(["perfect_day", "streak", "letter"]);
 
 /**
  * Request-memoised via React cache(): the layout and the page each call this
@@ -35,38 +34,20 @@ export const loadState = cache(async () => {
     data.celebrations.push(...fresh);
   }
 
-  const { totals, days, weeks } = computeTotals(config, habits, data.entries, today, data.photos);
+  const { totals, days } = computeTotals(config, habits, data.entries, today);
   const index = indexEntries(data.entries);
   const todayScore = scoreDay(config, habits, index, today, today);
-  const thisWeek = scoreWeek(habits, index, weekOf(config.startDate, config.totalDays, today));
+  const stats = habitStats(config, habits, data.entries, days, today);
 
+  // Rows of kinds the app no longer celebrates (reward milestones, week
+  // bonuses) may still sit unseen in the table; they're simply never shown.
   const pending = data.celebrations
-    .filter((c) => !c.seen)
+    .filter((c) => !c.seen && CELEBRATION_KINDS.has(c.kind))
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
   const unlockedLetters = data.letters
     .filter((l) => totals.daysElapsed >= l.unlockDay)
     .sort((a, b) => a.unlockDay - b.unlockDay);
-
-  const situation = pickSituation({
-    unlocked: totals.unlocked,
-    todayPct: todayScore.pct,
-    remaining: todayScore.perHabit.filter((p) => !p.done).length,
-    missedYesterday:
-      days.find((d) => d.day === addDays(today, -1))?.status === "missed",
-    onTrack: totals.onTrack,
-    daysElapsed: totals.daysElapsed,
-    streak: totals.currentStreak,
-    hour,
-  });
-
-  // A generated line when we have one, the hand-written fallback when we don't.
-  const coach = data.coach?.day === today ? data.coach : null;
-  const written = mascotLine(config, todayScore, totals, hour, config.heroName);
-  const generated = pickLine(coach, situation, totals.daysElapsed * 7 + hour);
-  const mascot = generated
-    ? { text: generated.text, mood: generated.mood }
-    : written;
 
   return {
     config,
@@ -77,6 +58,7 @@ export const loadState = cache(async () => {
     unlockedLetters,
     nudges: data.nudges,
     photos: data.photos,
+    journal: data.journal,
     unreadForHero: data.nudges.filter((n) => n.from !== "hero" && !n.readAt),
     unreadForSponsor: data.nudges.filter((n) => n.from !== "sponsor" && !n.readAt),
     pushSubs: data.pushSubs,
@@ -84,39 +66,12 @@ export const loadState = cache(async () => {
     clock,
     hour,
     days,
-    weeks,
     totals,
     todayScore,
-    thisWeek,
+    stats,
     pending,
-    parts: partsUnlocked(totals.rewardPct),
-    nextPart: nextPart(totals.rewardPct),
-    mascot,
-    situation,
-    coach,
+    coach: data.coach?.day === today ? data.coach : null,
   };
 });
-
-/** Which kind of line fits where she is right now. Order matters — first wins. */
-function pickSituation(x: {
-  unlocked: boolean;
-  todayPct: number;
-  remaining: number;
-  missedYesterday: boolean;
-  onTrack: boolean;
-  daysElapsed: number;
-  streak: number;
-  hour: number;
-}): Situation {
-  if (x.unlocked) return "reward";
-  if (x.todayPct >= 99.5) return "perfect_day";
-  if (x.remaining > 0 && x.remaining <= 2) return "almost";
-  if (x.missedYesterday) return "comeback";
-  if (!x.onTrack && x.daysElapsed > 7) return "behind";
-  if (x.streak >= 7) return "streak";
-  if (x.hour >= 20 && x.remaining > 0) return "evening";
-  if (x.hour < 11) return "morning";
-  return "reward";
-}
 
 export type AppState = Awaited<ReturnType<typeof loadState>>;

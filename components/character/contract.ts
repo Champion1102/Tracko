@@ -16,7 +16,7 @@
  * That's four inputs. Any rigged character exposing them will drop straight in.
  */
 
-import type { Mood } from "@/lib/mascot";
+import type { Mood } from "@/lib/types";
 
 export const MOOD_INDEX: Record<Mood, number> = {
   happy: 0,

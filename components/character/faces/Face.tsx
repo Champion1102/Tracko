@@ -1,4 +1,4 @@
-import type { Mood } from "@/lib/mascot";
+import type { Mood } from "@/lib/types";
 
 /**
  * One face, shared by every hand-drawn character. Keeping eyes and mouth in a

@@ -35,7 +35,7 @@ export default async function SponsorSetupPage() {
         heroName={config.heroName}
       />
 
-      <DealSettings config={config} maxPoints={s.totals.max} />
+      <DealSettings config={config} />
       <HabitEditor habits={s.allHabits} />
 
       <section className="card space-y-3 p-4">

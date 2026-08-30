@@ -5,16 +5,15 @@ import { usePathname } from "next/navigation";
 import { Icon } from "@/components/Icon";
 import { sfx } from "@/lib/sfx";
 
-// Daily stops only — Stats, Money, Gallery and Settings live in the
-// hamburger drawer (SideNav), so this row stays uncrowded.
+// The four daily stops. Messages, Money, Gallery and You live in the drawer.
 const TABS = [
   { href: "/today", label: "Today", icon: Icon.today },
-  { href: "/journey", label: "Journey", icon: Icon.journey },
+  { href: "/progress", label: "Progress", icon: Icon.chart },
+  { href: "/journal", label: "Journal", icon: Icon.book },
   { href: "/chat", label: "Nimbus", icon: Icon.chat },
-  { href: "/reward", label: "Reward", icon: Icon.trophy },
 ];
 
-export function TabBar({ badge = 0 }: { badge?: number }) {
+export function TabBar() {
   const path = usePathname();
 
   return (
@@ -28,20 +27,13 @@ export function TabBar({ badge = 0 }: { badge?: number }) {
               key={t.href}
               href={t.href}
               onClick={() => sfx.tick()}
-              className={`relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[9px] font-black tracking-wide uppercase transition-colors ${
-                active ? "text-gold" : "text-faint"
+              aria-current={active ? "page" : undefined}
+              className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-bold transition-colors ${
+                active ? "text-text" : "text-faint"
               }`}
             >
-              <span className="relative grid h-[20px] w-[20px] place-items-center">
-                <Glyph size={20} />
-                {t.href === "/today" && badge > 0 && (
-                  <span className="absolute -top-1.5 -right-2.5 grid h-[15px] min-w-[15px] place-items-center rounded-full bg-rose px-[3px] text-[9px] leading-none font-black text-white ring-2 ring-ink-2">
-                    {badge}
-                  </span>
-                )}
-              </span>
+              <Glyph size={21} />
               {t.label}
-              {active && <span className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-gold" />}
             </Link>
           );
         })}

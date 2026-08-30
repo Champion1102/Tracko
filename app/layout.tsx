@@ -12,7 +12,7 @@ const nunito = Nunito({
 
 export const metadata: Metadata = {
   title: "Tracko",
-  description: "90 days. Ten habits. One Dyson.",
+  description: "Ten habits, one tick each, every day.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -27,8 +27,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#FAF6F2" },
-    { media: "(prefers-color-scheme: dark)", color: "#0B0710" },
+    { media: "(prefers-color-scheme: light)", color: "#F6F4F1" },
+    { media: "(prefers-color-scheme: dark)", color: "#121114" },
   ],
   width: "device-width",
   initialScale: 1,

@@ -1,5 +1,3 @@
-import { money } from "@/lib/money";
-
 /**
  * Her own handwriting from day one, shown back to her. This is the payoff for
  * making the promise a real moment rather than a checkbox.
@@ -10,25 +8,19 @@ export function PromiseCard({
   signedAt,
   name,
   daysElapsed,
-  earned,
-  currency,
 }: {
   text: string;
   signature: string;
   signedAt: string | null;
   name: string;
   daysElapsed: number;
-  earned: number;
-  currency: string;
 }) {
   if (!signedAt) return null;
 
   return (
     <section className="card overflow-hidden">
-      <div className="bg-gradient-to-b from-gold/10 to-transparent px-4 pt-4 pb-2">
-        <p className="text-[10px] font-black tracking-[0.2em] text-gold uppercase">
-          What you promised
-        </p>
+      <div className="px-4 pt-4 pb-2">
+        <p className="text-[12px] font-bold text-faint">What you promised</p>
       </div>
 
       <div className="px-4 pb-4">
@@ -55,7 +47,6 @@ export function PromiseCard({
             year: "numeric",
           })}
           {daysElapsed > 1 && ` · ${daysElapsed - 1} days ago`}
-          {earned > 0 && ` · ${money(earned, currency)} earned since`}
         </p>
       </div>
     </section>

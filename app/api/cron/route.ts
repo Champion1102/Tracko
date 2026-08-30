@@ -2,10 +2,9 @@ import { NextResponse } from "next/server";
 import { buildCoachContext, coachConfigured, generateCoachPack, pickLine } from "@/lib/coach";
 import { db } from "@/lib/db";
 import { loadState } from "@/lib/state";
-import { timeInTz, todayInTz } from "@/lib/dates";
+import { addDays, timeInTz, todayInTz } from "@/lib/dates";
 import { sendPush } from "@/lib/push";
-import { computeTotals, scoreDay, indexEntries, scoreWeek } from "@/lib/scoring";
-import { weekOf } from "@/lib/dates";
+import { computeTotals, indexEntries, scoreDay } from "@/lib/scoring";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +34,7 @@ export async function GET(req: Request) {
 
   const index = indexEntries(data.entries);
   const day = scoreDay(config, data.habits, index, today, today);
-  const { totals } = computeTotals(config, data.habits, data.entries, today, data.photos);
+  const { totals, days } = computeTotals(config, data.habits, data.entries, today);
   const remaining = day.perHabit.filter((p) => !p.done);
   const name = config.heroName;
 
@@ -63,13 +62,13 @@ export async function GET(req: Request) {
     await sendPush("hero", {
       title:
         totals.currentStreak > 0
-          ? `Day ${day.index} · ${totals.currentStreak}-day streak 🔥`
+          ? `Day ${day.index} · ${totals.currentStreak} in a row`
           : `Day ${day.index} of ${config.totalDays}`,
       body:
         line("morning") ??
         (totals.currentStreak >= 7
-          ? `Don't break it now${name ? `, ${name}` : ""}. Ten boxes waiting.`
-          : `${Math.round(totals.pointsToGo).toLocaleString()} points from the ${config.rewardName}. Start with water.`),
+          ? `Don't break it now${name ? `, ${name}` : ""}. Ten ticks waiting.`
+          : `${day.total} things today. Start with water.`),
       url: "/today",
       tag: "morning",
     });
@@ -106,11 +105,14 @@ export async function GET(req: Request) {
   if (weekday === "Sun" && due("recap", "19:00")) {
     log.recap = today;
     fired.push("recap");
-    const w = scoreWeek(data.habits, index, weekOf(config.startDate, config.totalDays, today));
-    const body = `${totals.perfectDays} perfect days so far · ${Math.floor(totals.rewardPct)}% to the ${config.rewardName} · week bonus ${Math.round(w.earned)}/${Math.round(w.max)}.`;
-    await sendPush("hero", { title: "Your week in review", body, url: "/stats", tag: "recap" });
+    const week = Array.from({ length: 7 }, (_, i) => addDays(today, i - 6));
+    const good = days.filter(
+      (d) => week.includes(d.day) && (d.status === "perfect" || d.status === "kept"),
+    ).length;
+    const body = `${good} of 7 good days this week · ${totals.daysDone} days done so far · ${totals.currentStreak}-day streak.`;
+    await sendPush("hero", { title: "Your week", body, url: "/progress", tag: "recap" });
     await sendPush("sponsor", {
-      title: `${name || "Her"} week in review`,
+      title: `${name || "Her"} week`,
       body,
       url: "/sponsor",
       tag: "recap",

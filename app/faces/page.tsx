@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { SvgCharacter } from "@/components/character/SvgCharacter";
 import { DRAWN, DRAWN_IDS } from "@/components/character/faces";
-import type { Mood } from "@/lib/mascot";
+import type { Mood } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 

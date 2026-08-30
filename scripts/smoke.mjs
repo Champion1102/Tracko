@@ -19,9 +19,10 @@ await fetch("http://localhost:3111/welcome", { headers: { cookie: `tracko_sessio
 
 const pages = [
   ["hero", "/welcome"],
-  ["hero", "/today"], ["hero", "/journey"], ["hero", "/reward"],
-  ["hero", "/stats"], ["hero", "/settings"], ["sponsor", "/sponsor"],
-  ["hero", "/chat"],
+  ["hero", "/today"], ["hero", "/progress"], ["hero", "/journal"],
+  ["hero", "/settings"], ["hero", "/gallery"], ["hero", "/money"],
+  ["hero", "/messages"], ["hero", "/chat"],
+  ["sponsor", "/sponsor"], ["sponsor", "/sponsor/setup"], ["sponsor", "/sponsor/letters"],
   ["hero", "/api/photos"], ["hero", "/api/characters"], ["hero", "/api/photos?all=1"],
 ];
 

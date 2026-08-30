@@ -4,14 +4,20 @@ import { useState, useTransition } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { deleteHabit, saveHabit } from "@/app/actions";
 import { sfx } from "@/lib/sfx";
-import type { Habit, HabitKind } from "@/lib/types";
+import type { Habit, HabitKind, Proof } from "@/lib/types";
 import { HABIT_ICON_KEYS, HabitIcon } from "./HabitIcon";
 
 const KINDS: { value: HabitKind; label: string; hint: string }[] = [
-  { value: "binary", label: "Yes / no", hint: "One tap to mark done" },
+  { value: "binary", label: "One tap", hint: "Tick it once, done for the day" },
   { value: "counter", label: "Count", hint: "Tap up to a target, like 8 glasses" },
-  { value: "duration", label: "Minutes", hint: "Add time until you hit the target" },
   { value: "checklist", label: "Checklist", hint: "Several sub-items, all needed" },
+];
+
+const PROOFS: { value: Proof | ""; label: string; hint: string }[] = [
+  { value: "", label: "None", hint: "Just the tick" },
+  { value: "photo", label: "Photo", hint: "A camera on the row" },
+  { value: "link", label: "Link", hint: "Paste the post URL" },
+  { value: "hours", label: "Hours", hint: "Tick with hours, like sleep" },
 ];
 
 const blank = (): Habit => ({
@@ -21,8 +27,6 @@ const blank = (): Habit => ({
   blurb: "",
   emoji: "✅",
   kind: "binary",
-  cadence: "daily",
-  points: 10,
   target: 1,
   unit: "",
   sortOrder: 99,
@@ -31,29 +35,20 @@ const blank = (): Habit => ({
 
 export function HabitEditor({ habits }: { habits: Habit[] }) {
   const [editing, setEditing] = useState<Habit | null>(null);
-  const dailyTotal = habits
-    .filter((h) => h.active && h.cadence === "daily")
-    .reduce((s, h) => s + h.points, 0);
+
+  const line = (h: Habit) => {
+    const kind =
+      h.kind === "binary"
+        ? "one tap"
+        : h.kind === "counter"
+          ? `count to ${h.target}${h.unit ? ` ${h.unit}` : ""}`
+          : `checklist of ${h.target}`;
+    return `${kind}${h.proof ? ` · ${h.proof}` : ""}${h.active ? "" : " · off"}`;
+  };
 
   return (
     <section className="space-y-3">
-      <div className="flex items-baseline justify-between px-1">
-        <h2 className="text-[11px] font-black tracking-[0.16em] text-faint uppercase">Habits</h2>
-        <span
-          className={`text-[11px] font-black tabular-nums ${
-            dailyTotal === 100 ? "text-grass" : "text-flame"
-          }`}
-        >
-          {dailyTotal} pts / day
-        </span>
-      </div>
-
-      {dailyTotal !== 100 && (
-        <p className="card border-flame/40 bg-flame/8 p-3 text-[12px] leading-snug font-bold text-muted">
-          Daily habits add up to {dailyTotal}, not 100. Everything still works — percentages are
-          relative — but a perfect day won&apos;t read as a clean 100.
-        </p>
-      )}
+      <h2 className="px-1 text-[12px] font-bold text-faint">Habits</h2>
 
       <ul className="space-y-2">
         {habits.map((h) => (
@@ -72,10 +67,7 @@ export function HabitEditor({ habits }: { habits: Habit[] }) {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[13.5px] font-black text-text">{h.name}</span>
-                <span className="block text-[11px] font-bold text-faint">
-                  {h.cadence === "weekly" ? `weekly · ${h.target} ${h.unit}` : `daily · ${h.points} pts`}
-                  {h.active ? "" : " · off"}
-                </span>
+                <span className="block text-[11px] font-bold text-faint">{line(h)}</span>
               </span>
               <span className="text-faint">›</span>
             </button>
@@ -144,7 +136,7 @@ function Sheet({ habit, onClose }: { habit: Habit; onClose: () => void }) {
                   aria-label={key}
                   className={`grid h-10 w-10 place-items-center rounded-xl border ${
                     d.icon === key
-                      ? "border-gold/60 bg-gold/20 text-gold"
+                      ? "border-grass/60 bg-grass/15 text-grass"
                       : "border-line bg-surface-2 text-muted"
                   }`}
                 >
@@ -152,7 +144,7 @@ function Sheet({ habit, onClose }: { habit: Habit; onClose: () => void }) {
                 </button>
               ))}
               <input
-                className={`h-10 w-16 rounded-xl border border-line bg-ink-2 text-center text-lg outline-none focus:border-gold`}
+                className="h-10 w-16 rounded-xl border border-line bg-ink-2 text-center text-lg outline-none focus:border-grass"
                 value={d.emoji}
                 maxLength={4}
                 aria-label="Or an emoji"
@@ -175,16 +167,17 @@ function Sheet({ habit, onClose }: { habit: Habit; onClose: () => void }) {
           </label>
 
           <div>
-            <span className="mb-1.5 block text-[11.5px] font-bold text-muted">How it&apos;s tracked</span>
-            <div className="grid grid-cols-2 gap-2">
+            <span className="mb-1.5 block text-[11.5px] font-bold text-muted">How it&apos;s ticked</span>
+            <div className="grid grid-cols-3 gap-2">
               {KINDS.map((k) => (
                 <button
                   key={k.value}
-                  onClick={() => set("kind", k.value)}
+                  onClick={() => {
+                    set("kind", k.value);
+                    if (k.value === "binary") setD((p) => ({ ...p, kind: "binary", target: 1, unit: "" }));
+                  }}
                   className={`press rounded-xl px-3 py-2.5 text-left ${
-                    d.kind === k.value
-                      ? "border-aqua/50 bg-aqua/20"
-                      : "border-line bg-surface-2"
+                    d.kind === k.value ? "border-grass/50 bg-grass/12" : "border-line bg-surface-2"
                   }`}
                 >
                   <span className="block text-[12.5px] font-black text-text">{k.label}</span>
@@ -210,51 +203,51 @@ function Sheet({ habit, onClose }: { habit: Habit; onClose: () => void }) {
             </label>
           )}
 
-          <div className="grid grid-cols-3 gap-3">
-            <label>
-              <span className="mb-1.5 block text-[11.5px] font-bold text-muted">Points</span>
-              <input
-                type="number"
-                min={1}
-                className={input}
-                value={d.points}
-                onChange={(e) => set("points", Number(e.target.value))}
-              />
-            </label>
-            <label>
-              <span className="mb-1.5 block text-[11.5px] font-bold text-muted">Target</span>
-              <input
-                type="number"
-                min={1}
-                disabled={d.kind === "binary" || d.kind === "checklist"}
-                className={`${input} disabled:opacity-40`}
-                value={d.target}
-                onChange={(e) => set("target", Number(e.target.value))}
-              />
-            </label>
-            <label>
-              <span className="mb-1.5 block text-[11.5px] font-bold text-muted">Unit</span>
-              <input
-                className={input}
-                value={d.unit}
-                placeholder="min"
-                onChange={(e) => set("unit", e.target.value)}
-              />
-            </label>
-          </div>
+          {d.kind === "counter" && (
+            <div className="grid grid-cols-2 gap-3">
+              <label>
+                <span className="mb-1.5 block text-[11.5px] font-bold text-muted">Target</span>
+                <input
+                  type="number"
+                  min={1}
+                  className={input}
+                  value={d.target}
+                  onChange={(e) => set("target", Number(e.target.value))}
+                />
+              </label>
+              <label>
+                <span className="mb-1.5 block text-[11.5px] font-bold text-muted">Unit</span>
+                <input
+                  className={input}
+                  value={d.unit}
+                  placeholder="glasses"
+                  onChange={(e) => set("unit", e.target.value)}
+                />
+              </label>
+            </div>
+          )}
 
-          <div className="grid grid-cols-2 gap-2">
-            {(["daily", "weekly"] as const).map((c) => (
-              <button
-                key={c}
-                onClick={() => set("cadence", c)}
-                className={`press rounded-xl py-2.5 text-[12.5px] font-black capitalize ${
-                  d.cadence === c ? "border-violet/60 bg-violet/25 text-text" : "border-line bg-surface-2 text-muted"
-                }`}
-              >
-                {c}
-              </button>
-            ))}
+          <div>
+            <span className="mb-1.5 block text-[11.5px] font-bold text-muted">Proof on the row</span>
+            <div className="grid grid-cols-2 gap-2">
+              {PROOFS.map((pr) => (
+                <button
+                  key={pr.value}
+                  onClick={() => set("proof", (pr.value || undefined) as Habit["proof"])}
+                  className={`press rounded-xl px-3 py-2.5 text-left ${
+                    (d.proof ?? "") === pr.value
+                      ? "border-grass/50 bg-grass/12"
+                      : "border-line bg-surface-2"
+                  }`}
+                >
+                  <span className="block text-[12.5px] font-black text-text">{pr.label}</span>
+                  <span className="block text-[10px] leading-tight font-bold text-faint">{pr.hint}</span>
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-[11px] font-semibold text-faint">
+              Optional either way — she can always just tick.
+            </p>
           </div>
 
           <button
@@ -278,7 +271,7 @@ function Sheet({ habit, onClose }: { habit: Habit; onClose: () => void }) {
                 onClose();
               });
             }}
-            className="press flex-1 rounded-2xl border-grass-deep bg-grass py-3.5 text-[13px] font-black tracking-wide text-ink uppercase disabled:border-line disabled:bg-surface-2 disabled:text-faint"
+            className="press flex-1 rounded-2xl border-grass-deep bg-grass py-3.5 text-[13px] font-black tracking-wide text-white uppercase disabled:border-line disabled:bg-surface-2 disabled:text-faint"
           >
             Save
           </button>
@@ -308,4 +301,4 @@ function Sheet({ habit, onClose }: { habit: Habit; onClose: () => void }) {
 }
 
 const input =
-  "w-full rounded-xl border-2 border-line bg-ink-2 px-3.5 py-2.5 text-[14px] font-bold text-text outline-none focus:border-aqua";
+  "w-full rounded-xl border-2 border-line bg-ink-2 px-3.5 py-2.5 text-[14px] font-bold text-text outline-none focus:border-grass";

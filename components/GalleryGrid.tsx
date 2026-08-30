@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { prettyDay } from "@/lib/dates";
 import { sfx } from "@/lib/sfx";
+import { HabitIcon } from "./HabitIcon";
 
-type Shot = { id: string; day: string; url: string };
+type Shot = { id: string; day: string; habitId?: string | null; url: string };
+
+export type GalleryHabit = { icon?: string | null; emoji: string; name: string };
 
 /**
  * Her whole library, newest first. The API already returns them in order, so
@@ -14,7 +17,7 @@ type Shot = { id: string; day: string; url: string };
  * presentation grouping over the top of it. Keeping one flat array means
  * next/previous walks across day boundaries the way a photos app does.
  */
-export function GalleryGrid() {
+export function GalleryGrid({ habits = {} }: { habits?: Record<string, GalleryHabit> }) {
   const [shots, setShots] = useState<Shot[]>([]);
   const [loading, setLoading] = useState(true);
   const [at, setAt] = useState<number | null>(null);
@@ -115,8 +118,8 @@ export function GalleryGrid() {
       <section className="card grid place-items-center p-8 text-center">
         <p className="text-[15px] font-black text-text">Nothing here yet.</p>
         <p className="mt-1.5 max-w-[32ch] text-[12.5px] leading-snug font-semibold text-muted">
-          Add a photo on Today and it&apos;ll live here. In a few months this is going to be quite
-          a thing to scroll back through.
+          Add a photo from the gym row on Today and it&apos;ll live here. In a few months this
+          is going to be quite a thing to scroll back through.
         </p>
       </section>
     );
@@ -135,7 +138,7 @@ export function GalleryGrid() {
                 <button
                   key={shot.id}
                   onClick={() => open(index)}
-                  className="press aspect-square overflow-hidden rounded-xl border border-line-soft"
+                  className="press relative aspect-square overflow-hidden rounded-xl border border-line-soft"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -144,6 +147,15 @@ export function GalleryGrid() {
                     loading="lazy"
                     className="h-full w-full object-cover"
                   />
+                  {shot.habitId && habits[shot.habitId] && (
+                    <span className="absolute bottom-1 left-1 grid h-5 w-5 place-items-center rounded-md bg-ink/60 text-white">
+                      <HabitIcon
+                        icon={habits[shot.habitId].icon ?? undefined}
+                        emoji={habits[shot.habitId].emoji}
+                        size={12}
+                      />
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -198,7 +210,10 @@ export function GalleryGrid() {
             </div>
 
             <div className="safe-bottom px-6 py-4 text-center">
-              <p className="text-[12.5px] font-black text-muted">{prettyDay(current.day)}</p>
+              <p className="text-[12.5px] font-black text-muted">
+                {prettyDay(current.day)}
+                {current.habitId && habits[current.habitId] ? ` · ${habits[current.habitId].name}` : ""}
+              </p>
               <button
                 onClick={() => remove(current.id)}
                 className="press mt-3 rounded-2xl border-flame-deep bg-flame px-6 py-2.5 text-[11.5px] font-black tracking-wide text-ink uppercase"

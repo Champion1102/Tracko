@@ -7,14 +7,13 @@ import { useSyncExternalStore } from "react";
  * AI-assistant face belongs in the chat, a growing plant belongs on the page
  * about progress — and each page only ever downloads the one it uses.
  */
-export type CharacterRole = "companion" | "chat" | "reward" | "celebration";
+export type CharacterRole = "companion" | "chat" | "celebration";
 
 export type Cast = Record<CharacterRole, string>;
 
 export const ROLE_LABELS: Record<CharacterRole, { title: string; blurb: string }> = {
-  companion: { title: "Everyday buddy", blurb: "The one on Today, talking to you as you tick things off." },
+  companion: { title: "Everyday buddy", blurb: "The one who walked you through day one." },
   chat: { title: "Chat face", blurb: "Who you're talking to on the Nimbus tab." },
-  reward: { title: "Growth", blurb: "Watches over the journey and the reward." },
   celebration: { title: "Celebrations", blurb: "Shows up when you hit something big." },
 };
 
@@ -27,7 +26,6 @@ export const ROLE_LABELS: Record<CharacterRole, { title: string; blurb: string }
 export const DEFAULT_CAST: Cast = {
   companion: "drawn:nimbus",
   chat: "drawn:nimbus",
-  reward: "drawn:sprout",
   celebration: "drawn:ember",
 };
 

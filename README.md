@@ -1,36 +1,32 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tracko
 
-## Getting Started
+A two-person habit tracker: she ticks ten small daily habits, you (the sponsor)
+watch, write sealed letters, and cheer. No points, no rewards — one tick per
+habit per day, a private journal, a money log, and a small cloud called Nimbus.
 
-First, run the development server:
+## Run it
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+With no Supabase keys in `.env.local`, everything writes to `.data/tracko.json`
+— perfect for development. Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
+for the real thing, and run `supabase/schema.sql` (plus any dated migration
+files) in the Supabase SQL editor first.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Copy `.env.example` to `.env.local` for the full list of knobs: PINs, push
+notification keys (`npm run vapid`), and optional LLM provider keys for
+Nimbus's daily lines and chat.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## The two sides
 
-## Learn More
+- **Hers** — `/today` (tick list), `/progress` (calendar + per-habit patterns),
+  `/journal` (private diary), `/chat` (Nimbus), with Messages, Money, Gallery
+  and Settings in the drawer.
+- **Sponsor** — `/sponsor`: overview, chat, sealed letters, and Setup (names,
+  the clock, habit list).
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`npm run demo` fills the local file store with plausible history so every
+screen has something to show.

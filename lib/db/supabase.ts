@@ -10,12 +10,14 @@ import type {
   Entry,
   Expense,
   Habit,
+  JournalEntry,
   Letter,
   Nudge,
   Photo,
   PushSub,
   Role,
 } from "../types";
+import { normalizeHabit } from "./normalize";
 import type { ExpensePatch, Store } from "./store";
 
 type HabitRow = {
@@ -25,32 +27,35 @@ type HabitRow = {
   blurb: string;
   emoji: string;
   icon: string | null;
-  kind: Habit["kind"];
-  cadence: Habit["cadence"];
+  /** Old rows may still say "duration" or "sleep"; normalizeHabit folds them. */
+  kind: string;
+  /** Legacy NOT NULL columns from the points era. Written as constants. */
+  cadence: string;
   points: number;
   target: number;
   unit: string;
   sub_items: string[] | null;
+  proof: string | null;
   sort_order: number;
   active: boolean;
 };
 
-const toHabit = (r: HabitRow): Habit => ({
-  id: r.id,
-  slug: r.slug,
-  name: r.name,
-  blurb: r.blurb,
-  emoji: r.emoji,
-  icon: r.icon ?? undefined,
-  kind: r.kind,
-  cadence: r.cadence,
-  points: Number(r.points),
-  target: Number(r.target),
-  unit: r.unit,
-  subItems: r.sub_items ?? undefined,
-  sortOrder: r.sort_order,
-  active: r.active,
-});
+const toHabit = (r: HabitRow): Habit =>
+  normalizeHabit({
+    id: r.id,
+    slug: r.slug,
+    name: r.name,
+    blurb: r.blurb,
+    emoji: r.emoji,
+    icon: r.icon ?? undefined,
+    kind: r.kind,
+    target: Number(r.target),
+    unit: r.unit,
+    subItems: r.sub_items ?? undefined,
+    proof: r.proof ?? undefined,
+    sortOrder: r.sort_order,
+    active: r.active,
+  });
 
 const fromHabit = (h: Habit): HabitRow => ({
   id: h.id,
@@ -60,11 +65,12 @@ const fromHabit = (h: Habit): HabitRow => ({
   emoji: h.emoji,
   icon: h.icon ?? null,
   kind: h.kind,
-  cadence: h.cadence,
-  points: h.points,
+  cadence: "daily",
+  points: 0,
   target: h.target,
   unit: h.unit,
   sub_items: h.subItems ?? null,
+  proof: h.proof ?? null,
   sort_order: h.sortOrder,
   active: h.active,
 });
@@ -152,7 +158,7 @@ export class SupabaseStore implements Store {
   async read(): Promise<DB> {
     // Config rides in the same parallel batch as everything else — a serial
     // "is it seeded yet?" round trip in front of every read was pure latency.
-    const [configRow, habits, entries, letters, nudges, celebrations, pushSubs, coach, photos, chat, expenses] =
+    const [configRow, habits, entries, letters, nudges, celebrations, pushSubs, coach, photos, chat, expenses, journal] =
       await Promise.all([
       this.sb.from("config").select("data").eq("id", 1).maybeSingle(),
       this.sb.from("habits").select("*").order("sort_order"),
@@ -168,13 +174,21 @@ export class SupabaseStore implements Store {
       // Nimbus kept getting fed stale context. Re-sorted below.
       this.sb.from("chat").select("*").order("created_at", { ascending: false }).limit(400),
       this.sb.from("expenses").select("*").order("day", { ascending: false }).limit(5000),
+      this.sb.from("journal").select("*").order("day", { ascending: false }).limit(1000),
     ]);
 
     // Any failed query fails the whole read. An empty screen would be worse
     // than an error — and an "empty" config must never be mistaken for a
     // fresh database (see seed()).
+    // Journal arrived after launch. If the migration hasn't run yet the table
+    // is missing — treat that one case as "no entries yet" (writes still fail
+    // loudly), so a deploy and the SQL don't have to land in the same minute.
+    const journalMissing = journal.error?.message.includes("journal") ?? false;
+    if (journalMissing) console.warn("Supabase: journal table missing — run supabase/2026-08-31-simplify.sql");
+
     const results = { config: configRow, habits, entries, letters, nudges, celebrations, push_subs: pushSubs, coach, photos, chat, expenses };
     for (const [table, res] of Object.entries(results)) check(res, `read ${table}`);
+    if (!journalMissing) check(journal, "read journal");
 
     const config = this.mergeConfig(configRow.data) ?? (await this.seed());
 
@@ -224,6 +238,7 @@ export class SupabaseStore implements Store {
         id: p.id,
         day: p.day,
         path: p.path,
+        habitId: p.habit_id ?? undefined,
         createdAt: p.created_at,
       })),
       chat: (chat.data ?? [])
@@ -242,6 +257,13 @@ export class SupabaseStore implements Store {
         verdict: e.verdict,
         note: e.note ?? undefined,
         createdAt: e.created_at,
+      })),
+      journal: (journalMissing ? [] : (journal.data ?? [])).map((j) => ({
+        day: j.day,
+        body: j.body ?? "",
+        mood: j.mood ?? null,
+        createdAt: j.created_at,
+        updatedAt: j.updated_at,
       })),
     };
   }
@@ -357,6 +379,7 @@ export class SupabaseStore implements Store {
       id: photo.id,
       day: photo.day,
       path: photo.path,
+      habit_id: photo.habitId ?? null,
       created_at: photo.createdAt,
     });
   }
@@ -402,6 +425,23 @@ export class SupabaseStore implements Store {
 
   async deleteExpense(id: string) {
     await this.sb.from("expenses").delete().eq("id", id);
+  }
+
+  async upsertJournal(entry: JournalEntry) {
+    check(
+      await this.sb.from("journal").upsert({
+        day: entry.day,
+        body: entry.body,
+        mood: entry.mood,
+        created_at: entry.createdAt,
+        updated_at: entry.updatedAt,
+      }),
+      "write journal",
+    );
+  }
+
+  async deleteJournal(day: string) {
+    await this.sb.from("journal").delete().eq("day", day);
   }
 
   async photoUrl(photo: Photo) {

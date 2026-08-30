@@ -86,8 +86,8 @@ export function ChatRoom({
             {heroName ? `Hi ${heroName}.` : "Hi."}
           </h2>
           <p className="mt-1.5 max-w-[30ch] text-[13.5px] leading-relaxed font-semibold text-muted">
-            I can see your streak, your habits and how close the reward is. Ask me anything about
-            it — or just say how the day went.
+            I can see your ticks, your streak and how each habit is going. Ask me anything —
+            or just say how the day went.
           </p>
           <div className="mt-5 flex w-full flex-col gap-2">
             {OPENERS.map((o) => (
@@ -106,7 +106,7 @@ export function ChatRoom({
           <div className="flex items-center justify-center gap-2 pb-1">
             <Character role="chat" mood="happy" size={30} />
             <p className="text-[11px] font-bold text-faint">
-              Nimbus — sees your streak, habits and the reward
+              Nimbus — sees your ticks, streaks and habits
             </p>
           </div>
           {messages.map((m, i) => {

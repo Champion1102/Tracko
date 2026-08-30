@@ -22,15 +22,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-dvh">
       <SWRegister />
-      <TopBar totals={s.totals} config={s.config} unread={s.unreadForHero.length} />
-      <main className="mx-auto max-w-md px-4 pt-4 pb-28">{children}</main>
-      <TabBar badge={s.todayScore.perHabit.filter((p) => !p.done).length} />
-      <CelebrationStack
-        items={s.pending}
-        rewardPct={s.totals.rewardPct}
-        rewardImage={s.config.rewardImage}
-        rewardName={s.config.rewardName}
-      />
+      <TopBar sponsorName={s.config.sponsorName} unread={s.unreadForHero.length} />
+      <main className="mx-auto max-w-md px-4 pt-2 pb-28">{children}</main>
+      <TabBar />
+      <CelebrationStack items={s.pending} />
     </div>
   );
 }
